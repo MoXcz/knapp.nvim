@@ -9,11 +9,12 @@ LUAROCKS    := luarocks --tree $(TREE) --lua-version $(LUA_VERSION)
 SELENE      := $(shell command -v selene 2>/dev/null || echo $(TOOLS)/selene)
 SELENE_VER  := 0.31.0
 
-.PHONY: all test bench lint format typecheck deps tools clean help
+.PHONY: all test bench lint format typecheck deps tools docs clean help
 
 help:
 	@echo "make deps       install busted into ./$(TREE)"
 	@echo "make tools      download selene into ./$(TOOLS)"
+	@echo "make docs       regenerate doc/ from README.md with panvimdoc"
 	@echo "make test       run the test suite"
 	@echo "make bench      time the index against a synthetic vault"
 	@echo "make lint       stylua --check and selene"
@@ -31,6 +32,15 @@ tools:
 	curl -sL -o /tmp/selene.zip \
 		https://github.com/Kampfkarren/selene/releases/download/$(SELENE_VER)/selene-$(SELENE_VER)-linux.zip
 	unzip -oq /tmp/selene.zip -d $(TOOLS) && chmod +x $(TOOLS)/selene
+
+# doc/ is generated from README.md; CI does this on every push that touches
+# the README (.github/workflows/panvimdoc.yml). This target is for checking the
+# result before pushing. Requires pandoc.
+docs:
+	@test -d $(TOOLS)/panvimdoc || git clone -q --depth 1 https://github.com/kdheepak/panvimdoc.git $(TOOLS)/panvimdoc
+	bash $(TOOLS)/panvimdoc/panvimdoc.sh \
+		--project-name knapp.nvim --input-file README.md --vim-version "Neovim >= 0.11"
+	@awk 'length > 79 { print FILENAME":"NR" is "length" columns" }' doc/*.txt || true
 
 # Specs run inside Neovim so they get the real `vim` API. busted's own
 # launcher is a /bin/sh wrapper, so invoke the Lua entrypoint it wraps.

@@ -27,7 +27,10 @@ With `vim.pack` (Neovim 0.12+):
 
 ```lua
 vim.pack.add({
-  { src = "https://github.com/MoXcz/knapp.nvim", version = vim.version.range("^0.1") },
+  {
+    src = "https://github.com/MoXcz/knapp.nvim",
+    version = vim.version.range("^0.1"),
+  },
 })
 
 require("knapp").setup({
@@ -142,7 +145,7 @@ require("knapp").setup({
   vault = nil, -- required
   ignore = { ".obsidian", ".trash", ".git", ".stfolder" },
   keys = {
-    enabled = true,  -- false: no default bindings, <Plug> maps still defined
+    enabled = true,  -- false: no defaults, <Plug> maps still defined
     global = true,   -- false: journal keys only inside the vault
     prefix = "<leader>o",
     palette = "<C-p>",
@@ -185,7 +188,7 @@ require("knapp").setup({
 ## Development
 
 ```sh
-make deps    # install busted into ./.luarocks (nothing touches your home dir)
+make deps    # install busted into ./.luarocks (not into $HOME)
 make tools   # download selene into ./.tools
 make test    # run the suite
 make bench   # time the index against a synthetic vault
@@ -215,7 +218,8 @@ image = {
     if not ok or not config.in_vault(file) then return nil end
     local index = require("knapp.index")
     index.ensure()
-    return index.resolve_file(require("knapp.link").decode(src), config.rel(file))
+    local target = require("knapp.link").decode(src)
+    return index.resolve_file(target, config.rel(file))
   end,
 }
 ```

@@ -5,7 +5,17 @@ local config = require("knapp.config")
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("knapp_pane")
-local state = nil -- { win, buf, items, rel }
+
+--- Live pane. Nil whenever the pane is closed, which is why every function
+--- that touches it guards first rather than assuming it is open.
+---@class knapp.PaneState
+---@field win integer
+---@field buf integer
+---@field rel string? vault-relative path the pane is currently showing
+---@field rows { rel: string, name: string, item: table, count: integer }[]
+
+---@type knapp.PaneState?
+local state = nil
 
 local function hl_setup()
   local function def(name, link) vim.api.nvim_set_hl(0, name, { link = link, default = true }) end
@@ -18,7 +28,7 @@ end
 function M.is_open() return state ~= nil and vim.api.nvim_win_is_valid(state.win) end
 
 function M.close()
-  if M.is_open() then vim.api.nvim_win_close(state.win, true) end
+  if state and vim.api.nvim_win_is_valid(state.win) then vim.api.nvim_win_close(state.win, true) end
   state = nil
 end
 
@@ -49,6 +59,7 @@ local function group(items)
 end
 
 local function render(rel, items)
+  if not state then return end
   local rows = group(items)
   local pane_width = vim.api.nvim_win_get_width(state.win)
   local lines, marks = {}, {}
@@ -95,6 +106,7 @@ local function render(rel, items)
 end
 
 local function item_under_cursor()
+  if not state then return nil end
   local row = vim.api.nvim_win_get_cursor(state.win)[1]
   local row_data = state.rows and state.rows[row - 2]
   return row_data and row_data.item
@@ -102,7 +114,7 @@ end
 
 local function jump(cmd)
   local item = item_under_cursor()
-  if not item then return end
+  if not item or not state then return end
   local target
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if win ~= state.win and is_note_win(win) then
@@ -134,7 +146,7 @@ end
 
 --- Refresh the pane for the current note. `force` re-reads even if unchanged.
 function M.update(force)
-  if not M.is_open() then return end
+  if not M.is_open() or not state then return end
   local win = vim.api.nvim_get_current_win()
   if win == state.win then return end
   local rel = actions.current()
@@ -149,7 +161,7 @@ function M.open(focus)
   if not rel then return end
   hl_setup()
   local opts = config.opts.backlinks
-  if M.is_open() then
+  if M.is_open() and state then
     if focus then vim.api.nvim_set_current_win(state.win) end
     M.update(true)
     return
@@ -176,7 +188,7 @@ function M.open(focus)
   vim.wo[win].cursorline = true
   vim.wo[win].signcolumn = "no"
   vim.wo[win].list = false
-  state = { win = win, buf = buf }
+  state = { win = win, buf = buf, rows = {} }
   setup_buf(buf)
   render(rel, actions.backlink_items(rel))
   if not focus then vim.api.nvim_set_current_win(prev) end

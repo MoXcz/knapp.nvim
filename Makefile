@@ -22,7 +22,7 @@ help:
 	@echo "make typecheck  lua-language-server against .luarc.json"
 	@echo "make clean      remove ./$(TREE), ./$(TOOLS) and generated doc tags"
 
-all: lint test
+all: lint typecheck test
 
 deps:
 	$(LUAROCKS) --lua-dir=/usr install busted
@@ -63,8 +63,12 @@ lint:
 format:
 	stylua lua tests
 
+# --configpath is resolved relative to the directory given to --check, which
+# is why this is absolute rather than the ../.luarc.json it looks like it
+# should be. Getting it wrong silently drops the config, and every `vim.*`
+# then reads as an undefined global.
 typecheck:
-	lua-language-server --check lua --checklevel=Warning --configpath=../.luarc.json
+	lua-language-server --check lua --checklevel=Warning --configpath=$(CURDIR)/.luarc.json
 
 clean:
 	rm -rf $(TREE) $(TOOLS) doc/tags

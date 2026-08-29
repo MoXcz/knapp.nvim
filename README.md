@@ -193,6 +193,7 @@ make tools   # download selene into ./.tools
 make test    # run the suite
 make bench   # time the index against a synthetic vault
 make lint    # stylua --check and selene
+make typecheck # lua-language-server against .luarc.json
 make help    # everything else
 ```
 

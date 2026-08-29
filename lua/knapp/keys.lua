@@ -249,6 +249,15 @@ M.global = {
 
 local function plug_name(action) return ("<Plug>(Knapp%s)"):format(action.plug) end
 
+--- An action's modes, always as a list.
+---@param action knapp.Action
+---@return string[]
+local function modes_of(action)
+  local modes = action.modes
+  if type(modes) == "string" then return { modes } end
+  return modes
+end
+
 --- The default left-hand side for an action, or nil when there is none.
 local function default_lhs(action)
   local keys = config.opts.keys
@@ -270,7 +279,7 @@ function M.define_plugs()
   for _, list in ipairs({ M.buffer, M.global }) do
     for _, action in ipairs(list) do
       -- the same <Plug> can appear for several modes; define each mode once
-      for _, mode in ipairs(type(action.modes) == "table" and action.modes or { action.modes }) do
+      for _, mode in ipairs(modes_of(action)) do
         local key = mode .. plug_name(action)
         if not seen[key] then
           seen[key] = true
@@ -285,8 +294,7 @@ end
 local function bind(action, opts)
   local lhs = default_lhs(action)
   if not lhs or lhs == "" or lhs == false then return end
-  local modes = type(action.modes) == "table" and action.modes or { action.modes }
-  for _, mode in ipairs(modes) do
+  for _, mode in ipairs(modes_of(action)) do
     -- hasmapto() is why <Plug> is worth the indirection: a user who wrote
     -- `vim.keymap.set("n", "<leader>x", "<Plug>(KnappRename)")` gets their
     -- binding and no surprise second one.

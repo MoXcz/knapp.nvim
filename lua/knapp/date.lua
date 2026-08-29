@@ -21,7 +21,12 @@ local tokens = {
   { "ss", function(t) return os.date("%S", t) end },
   { "WW", function(t) return os.date("%V", t) end },
   { "ww", function(t) return os.date("%V", t) end },
-  { "gg", function(t) return os.date("%G", t):sub(3) end },
+  {
+    "gg",
+    function(t)
+      return (os.date("%G", t) --[[@as string]]):sub(3)
+    end,
+  },
   { "Y", function(t) return os.date("%Y", t) end },
   { "M", function(t) return tostring(tonumber(os.date("%m", t))) end },
   { "D", function(t) return tostring(tonumber(os.date("%d", t))) end },
@@ -32,7 +37,12 @@ local tokens = {
   { "W", function(t) return tostring(tonumber(os.date("%V", t))) end },
   { "w", function(t) return tostring(tonumber(os.date("%V", t))) end },
   { "A", function(t) return os.date("%p", t) end },
-  { "a", function(t) return os.date("%p", t):lower() end },
+  {
+    "a",
+    function(t)
+      return (os.date("%p", t) --[[@as string]]):lower()
+    end,
+  },
 }
 
 --- Format `time` (defaults to now) using a moment-style pattern.
@@ -72,7 +82,7 @@ end
 
 --- Shift a timestamp by `n` units ("d", "w", "M", "y").
 function M.shift(time, n, unit)
-  local t = os.date("*t", time or os.time())
+  local t = os.date("*t", time or os.time()) --[[@as osdate]]
   if unit == "d" then
     t.day = t.day + n
   elseif unit == "w" then
@@ -95,7 +105,7 @@ end
 --- Monday of the week containing `time`.
 function M.week_start(time, first_day)
   time = time or os.time()
-  local t = os.date("*t", time)
+  local t = os.date("*t", time) --[[@as osdate]]
   local wday = t.wday -- 1 = Sunday
   local offset
   if first_day == "sunday" then

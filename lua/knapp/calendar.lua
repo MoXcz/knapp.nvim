@@ -8,7 +8,17 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("knapp_calendar")
 
-local state = nil -- { buf, win, year, month, cells, weeks }
+--- Live calendar float. Nil whenever it is closed.
+---@class knapp.CalendarState
+---@field buf integer
+---@field win integer
+---@field year integer
+---@field month integer
+---@field cells { line: integer, col_start: integer, col_end: integer, day: integer }[]
+---@field weeks table<integer, integer> display line -> a timestamp inside that week
+
+---@type knapp.CalendarState?
+local state = nil
 
 local function hl_setup()
   local function def(name, link)
@@ -90,6 +100,7 @@ local function build(year, month)
 end
 
 local function render()
+  if not state then return end
   local lines, cells, weeks, marks = build(state.year, state.month)
   state.cells, state.weeks = cells, weeks
   vim.bo[state.buf].modifiable = true
@@ -110,6 +121,7 @@ local function render()
 end
 
 local function day_under_cursor()
+  if not state then return nil end
   local row, col = unpack(vim.api.nvim_win_get_cursor(state.win))
   for _, cell in ipairs(state.cells) do
     if cell.line == row - 1 and col >= cell.col_start - 1 and col < cell.col_end then return cell.day end
@@ -123,6 +135,7 @@ local function close()
 end
 
 local function goto_today()
+  if not state then return end
   local t = os.date("*t")
   state.year, state.month = t.year, t.month
   render()
@@ -135,6 +148,7 @@ local function goto_today()
 end
 
 local function shift_month(n)
+  if not state then return end
   local t = os.date("*t", date.of(state.year, state.month + n, 1))
   state.year, state.month = t.year, t.month
   render()
@@ -165,7 +179,7 @@ function M.open()
     title_pos = "center",
   })
   vim.wo[win].cursorline = false
-  state = { buf = buf, win = win, year = t.year, month = t.month }
+  state = { buf = buf, win = win, year = t.year, month = t.month, cells = {}, weeks = {} }
   render()
   goto_today()
 

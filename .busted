@@ -1,0 +1,16 @@
+-- Busted configuration. Run with:  make test
+--
+-- Specs run inside Neovim (`nvim -l`), so the full `vim` API is available and
+-- there is no need to stub it.
+return {
+  _all = {
+    lpath = "lua/?.lua;lua/?/init.lua;tests/?.lua",
+    helper = "tests/bootstrap.lua",
+  },
+  default = {
+    ROOT = { "tests" },
+    pattern = "_spec%.lua$",
+    output = "utfTerminal",
+    verbose = true,
+  },
+}

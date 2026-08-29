@@ -34,7 +34,11 @@ end
 
 --- Blank out fenced blocks and inline code spans, preserving byte offsets, so
 --- code samples like `func f[P any](s store[P])` are not read as links.
+--- Fence state is file-scoped: this must be given a whole file, never a single
+--- line, or a link inside a fenced block reads as a link. See M.scan_lines().
 local function mask_code(text)
+  -- most notes contain no code at all: skip the line-by-line rewrite entirely
+  if not text:find("[`~]") then return text end
   local out, pos, fence, len = {}, 1, nil, #text
   while pos <= len do
     local eol = text:find("\n", pos, true)
@@ -132,12 +136,45 @@ function M.rewrite(text, fn)
   return table.concat(pieces), n
 end
 
---- The link under `col` (0-based byte column) on `line`, or nil.
-function M.at(line, col)
-  for _, m in ipairs(M.scan(line)) do
-    if col + 1 >= m.s and col + 1 <= m.e then return m end
+--- The link containing 1-based byte `offset` in `text`, or nil.
+--- `text` must be the whole file: scanning one line at a time cannot see that
+--- the line sits inside a fenced code block.
+function M.at(text, offset)
+  for _, m in ipairs(M.scan(text)) do
+    if m.s > offset then break end
+    if offset <= m.e then return m end
   end
   return nil
+end
+
+--- Byte offset, 1-based, at which each line of `text` starts.
+local function line_starts(text)
+  local starts, pos = { 1 }, 1
+  while true do
+    local nl = text:find("\n", pos, true)
+    if not nl then break end
+    starts[#starts + 1] = nl + 1
+    pos = nl + 1
+  end
+  return starts
+end
+
+--- M.scan(), with each match annotated with its 1-based `lnum` and its 1-based
+--- byte column `col` within that line.
+--- Prefer this over scanning line by line: it is one pass over the file
+--- instead of one masking pass per line, and it is the only way to know a line
+--- is inside a fenced code block.
+function M.scan_lines(text)
+  local matches = M.scan(text)
+  local starts = line_starts(text)
+  local i = 1
+  for _, m in ipairs(matches) do
+    -- matches are sorted by offset, so the line cursor only moves forward
+    while starts[i + 1] and starts[i + 1] <= m.s do i = i + 1 end
+    m.lnum = i
+    m.col = m.s - starts[i] + 1
+  end
+  return matches
 end
 
 return M

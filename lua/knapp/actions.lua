@@ -272,9 +272,13 @@ end
 --- gf replacement: follow the link under the cursor, else fall back to gf.
 function M.follow()
   index.ensure()
-  local line = vim.api.nvim_get_current_line()
-  local col = vim.api.nvim_win_get_cursor(0)[2]
-  local m = link.at(line, col)
+  -- the whole buffer, not just the current line: whether the cursor sits
+  -- inside a fenced code block is only knowable from the lines above it
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local offset = col + 1
+  for i = 1, row - 1 do offset = offset + #lines[i] + 1 end
+  local m = link.at(table.concat(lines, "\n"), offset)
   if not m then
     local ok = pcall(vim.cmd, "normal! gf")
     if not ok then notify("no link under cursor", vim.log.levels.WARN) end
@@ -298,22 +302,24 @@ function M.backlink_items(rel)
   local items = {}
   for _, src in ipairs(index.backlinks(rel)) do
     local path = config.abs(src)
-    local text = read_file(path) or ""
-    local lnum = 1
-    for line in (text .. "\n"):gmatch("(.-)\n") do
-      for _, m in ipairs(link.scan(line)) do
+    local text = read_file(path)
+    if text then
+      -- one pass over the file, so links inside fenced code blocks are skipped
+      -- here exactly as they are when the index is built
+      local lines
+      for _, m in ipairs(link.scan_lines(text)) do
         if index.resolve(m.target, src) == rel then
+          lines = lines or vim.split(text, "\n", { plain = true })
           items[#items + 1] = {
             rel = src,
             name = vim.fs.basename(src):sub(1, -4),
             filename = path,
-            lnum = lnum,
-            col = m.s,
-            text = vim.trim(line),
+            lnum = m.lnum,
+            col = m.col,
+            text = vim.trim(lines[m.lnum] or ""),
           }
         end
       end
-      lnum = lnum + 1
     end
   end
   table.sort(items, function(a, b)

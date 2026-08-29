@@ -187,6 +187,148 @@ describe("index.update", function()
   end)
 end)
 
+describe("index.update incremental path", function()
+  after_each(helpers.cleanup)
+
+  -- A body-only edit must not disturb any other note's edges, and a change to
+  -- the name/alias space must fall back to a full rebuild because it can move
+  -- where other notes' bare-name links point.
+
+  it("keeps other notes' backlinks when one note's links change", function()
+    local vault = helpers.setup({ ["a.md"] = "[[t]]", ["b.md"] = "[[t]]", ["t.md"] = "" })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "no link any more")
+    index.update("a.md")
+    assert.same({ "b.md" }, index.backlinks("t.md"))
+  end)
+
+  it("keeps the backlink when only one of several occurrences is removed", function()
+    local vault = helpers.setup({ ["a.md"] = "[[t]] and [[t]]", ["t.md"] = "" })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "[[t]] once")
+    index.update("a.md")
+    assert.same({ "a.md" }, index.backlinks("t.md"))
+  end)
+
+  it("does not duplicate a backlink when a note gains a second link to the same note", function()
+    local vault = helpers.setup({ ["a.md"] = "[[t]]", ["t.md"] = "" })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "[[t]] and [[t]] again")
+    index.update("a.md")
+    assert.same({ "a.md" }, index.backlinks("t.md"))
+  end)
+
+  it("moves a backlink when a link is repointed", function()
+    local vault = helpers.setup({ ["a.md"] = "[[one]]", ["one.md"] = "", ["two.md"] = "" })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "[[two]]")
+    index.update("a.md")
+    assert.same({}, index.backlinks("one.md"))
+    assert.same({ "a.md" }, index.backlinks("two.md"))
+  end)
+
+  it("rebuilds when a note gains an alias, so links through it resolve", function()
+    local vault = helpers.setup({ ["a.md"] = "[[Nickname]]", ["t.md"] = "" })
+    assert.same({}, index.backlinks("t.md"))
+    helpers.write(vim.fs.joinpath(vault, "t.md"), "---\naliases: [Nickname]\n---\n")
+    index.update("t.md")
+    assert.equals("t.md", index.resolve("Nickname"))
+    assert.same({ "a.md" }, index.backlinks("t.md"))
+  end)
+
+  it("rebuilds when a note loses an alias", function()
+    local vault = helpers.setup({ ["a.md"] = "[[Nickname]]", ["t.md"] = "---\naliases: [Nickname]\n---\n" })
+    assert.same({ "a.md" }, index.backlinks("t.md"))
+    helpers.write(vim.fs.joinpath(vault, "t.md"), "no aliases now\n")
+    index.update("t.md")
+    assert.is_nil(index.resolve("Nickname"))
+    assert.same({}, index.backlinks("t.md"))
+  end)
+
+  it("rebuilds when a new note makes a bare name ambiguous", function()
+    -- [[note]] in b/ resolves to the only "note" there is; adding a closer one
+    -- must repoint it, which only a full rebuild can see
+    local vault = helpers.setup({ ["a/note.md"] = "", ["b/src.md"] = "[[note]]" })
+    assert.same({ "b/src.md" }, index.backlinks("a/note.md"))
+    helpers.write(vim.fs.joinpath(vault, "b/note.md"), "")
+    index.update("b/note.md")
+    assert.same({}, index.backlinks("a/note.md"))
+    assert.same({ "b/src.md" }, index.backlinks("b/note.md"))
+  end)
+
+  it("rebuilds when a note is deleted, dropping links that pointed at it", function()
+    local vault = helpers.setup({ ["a/note.md"] = "", ["b/note.md"] = "", ["b/src.md"] = "[[note]]" })
+    assert.same({ "b/src.md" }, index.backlinks("b/note.md"))
+    vim.uv.fs_unlink(vim.fs.joinpath(vault, "b/note.md"))
+    index.update("b/note.md")
+    -- the link now resolves to the remaining note instead
+    assert.same({ "b/src.md" }, index.backlinks("a/note.md"))
+  end)
+
+  it("agrees with a full rebuild after a body-only edit", function()
+    local vault = helpers.setup({
+      ["a.md"] = "[[t]] [[u]]",
+      ["b.md"] = "[[t]]",
+      ["t.md"] = "",
+      ["u.md"] = "",
+    })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "[[u]] only")
+    index.update("a.md")
+    local incremental = {
+      t = helpers.sorted(index.backlinks("t.md")),
+      u = helpers.sorted(index.backlinks("u.md")),
+    }
+    index.reindex()
+    assert.same(incremental.t, helpers.sorted(index.backlinks("t.md")))
+    assert.same(incremental.u, helpers.sorted(index.backlinks("u.md")))
+    assert.same({ "b.md" }, incremental.t)
+  end)
+
+  it("handles a note that links to itself", function()
+    local vault = helpers.setup({ ["a.md"] = "" })
+    helpers.write(vim.fs.joinpath(vault, "a.md"), "[[a]]")
+    index.update("a.md")
+    assert.same({ "a.md" }, index.backlinks("a.md"))
+  end)
+end)
+
+describe("index cache writing", function()
+  after_each(helpers.cleanup)
+
+  it("writes atomically and leaves no temp file behind", function()
+    helpers.setup({ ["a.md"] = "" })
+    local cache = require("knapp.config").opts.cache
+    assert.is_true(index.save_cache())
+    assert.is_not_nil(vim.uv.fs_stat(vim.fs.joinpath(cache, "index.json")))
+    assert.is_nil(vim.uv.fs_stat(vim.fs.joinpath(cache, "index.json.tmp")))
+  end)
+
+  it("flushes a scheduled write on demand", function()
+    helpers.setup({ ["a.md"] = "" })
+    local path = vim.fs.joinpath(require("knapp.config").opts.cache, "index.json")
+    vim.uv.fs_unlink(path)
+    index.schedule_save()
+    assert.is_nil(vim.uv.fs_stat(path), "the debounced write should not have landed yet")
+    index.flush_cache()
+    assert.is_not_nil(vim.uv.fs_stat(path))
+  end)
+
+  it("does not rewrite the cache when nothing is pending", function()
+    helpers.setup({ ["a.md"] = "" })
+    index.flush_cache()
+    local path = vim.fs.joinpath(require("knapp.config").opts.cache, "index.json")
+    vim.uv.fs_unlink(path)
+    index.flush_cache()
+    assert.is_nil(vim.uv.fs_stat(path))
+  end)
+
+  it("survives a truncated cache from an interrupted write", function()
+    local vault = helpers.setup({ ["a.md"] = "[[b]]", ["b.md"] = "" })
+    local path = vim.fs.joinpath(require("knapp.config").opts.cache, "index.json")
+    helpers.write(path, '{"version":1,"vault":"' .. vault .. '","fil')
+    index.state.built = false
+    local result = index.build()
+    assert.equals(2, result.total)
+    assert.equals(2, result.parsed)
+  end)
+end)
+
 describe("index.notes and folders", function()
   after_each(helpers.cleanup)
 

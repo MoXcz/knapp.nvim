@@ -9,12 +9,13 @@ LUAROCKS    := luarocks --tree $(TREE) --lua-version $(LUA_VERSION)
 SELENE      := $(shell command -v selene 2>/dev/null || echo $(TOOLS)/selene)
 SELENE_VER  := 0.31.0
 
-.PHONY: all test lint format typecheck deps tools clean help
+.PHONY: all test bench lint format typecheck deps tools clean help
 
 help:
 	@echo "make deps       install busted into ./$(TREE)"
 	@echo "make tools      download selene into ./$(TOOLS)"
 	@echo "make test       run the test suite"
+	@echo "make bench      time the index against a synthetic vault"
 	@echo "make lint       stylua --check and selene"
 	@echo "make format     rewrite files with stylua"
 	@echo "make typecheck  lua-language-server against .luarc.json"
@@ -36,6 +37,9 @@ tools:
 test:
 	@test -n "$(BUSTED)" || { echo "busted not installed - run: make deps"; exit 1; }
 	@eval "$$($(LUAROCKS) path)" && nvim -l $(BUSTED) $(BUSTED_ARGS)
+
+bench:
+	nvim -l scripts/bench.lua
 
 lint:
 	@command -v stylua >/dev/null && stylua --check lua tests || echo "stylua not installed, skipping"

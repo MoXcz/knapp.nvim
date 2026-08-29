@@ -108,6 +108,7 @@ function M.setup(opts)
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = group,
     callback = function()
+      pcall(function() require("knapp.index").flush_cache() end)
       pcall(function() require("knapp.view").clear() end)
       pcall(function() require("knapp.pane").close() end)
     end,
@@ -170,7 +171,7 @@ function M.setup(opts)
       local name = vim.api.nvim_buf_get_name(ev.buf)
       if not config.in_vault(name) or not index.state.built then return end
       index.update(config.rel(name))
-      index.save_cache()
+      index.schedule_save()
       require("knapp.pane").update(true)
     end,
   })

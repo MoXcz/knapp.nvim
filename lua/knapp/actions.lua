@@ -127,7 +127,7 @@ function M.move_note(rel, new_rel)
   -- the rewritten sources must be reparsed too, or the index keeps resolving
   -- the old target and every backlink is lost
   index.update_many(vim.list_extend({ rel, new_rel }, changed))
-  index.save_cache()
+  index.schedule_save()
   vim.cmd("checktime")
   local n = #changed
   local msg = ("%s -> %s (%d file%s relinked)"):format(rel, new_rel, n, n == 1 and "" or "s")
@@ -198,7 +198,7 @@ function M.merge()
     local changed, skipped = M.rewrite_backlinks(rel, target_rel)
     M.trash(rel, true)
     index.update_many(vim.list_extend({ rel, target_rel }, changed))
-    index.save_cache()
+    index.schedule_save()
     vim.cmd.edit(vim.fn.fnameescape(config.abs(target_rel)))
     vim.cmd("normal! G")
     local msg = ("merged %s into %s (%d file%s relinked)"):format(

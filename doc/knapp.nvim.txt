@@ -1,5 +1,5 @@
 *knapp.nvim.txt*
-                             For Neovim >= 0.11    Last change: 2026 August 29
+                                For NVIM v0.8.0    Last change: 2026 August 29
 
 ==============================================================================
 Table of Contents                               *knapp.nvim-table-of-contents*
@@ -222,6 +222,7 @@ DEVELOPMENT                                *knapp.nvim-knapp.nvim-development*
     make test    # run the suite
     make bench   # time the index against a synthetic vault
     make lint    # stylua --check and selene
+    make typecheck # lua-language-server against .luarc.json
     make help    # everything else
 <
 

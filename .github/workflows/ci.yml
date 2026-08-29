@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (nvim ${{ matrix.neovim }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # nightly is not allowed to fail silently: 0.12 renamed vim.diff,
+        # on_line and the autocmd/keymap `buffer` key, and a nightly job is how
+        # the next one of those gets found before a user finds it.
+        neovim: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: "luajit-2.1"
+      - uses: leafo/gh-actions-luarocks@v6
+
+      - name: install busted
+        run: luarocks --tree .luarocks --lua-version 5.1 install busted
+
+      - name: test
+        run: |
+          eval "$(luarocks --tree .luarocks --lua-version 5.1 path)"
+          nvim -l .luarocks/lib/luarocks/rocks-5.1/busted/*/bin/busted
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check lua tests
+      - uses: NTBBloodbath/selene-action@v1.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: lua tests
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mrcjkb/lua-typecheck-action@v0.2.0
+        with:
+          directories: lua
+          checkLevel: Warning

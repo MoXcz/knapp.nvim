@@ -20,12 +20,16 @@ single source of truth and nothing is configured twice.
 With `vim.pack` (Neovim 0.12+):
 
 ```lua
-vim.pack.add({ "https://github.com/MoXcz/knapp.nvim" })
+vim.pack.add({
+  { src = "https://github.com/MoXcz/knapp.nvim", version = vim.version.range("^0.1") },
+})
 
 require("knapp").setup({
   vault = "~/notes", -- required
 })
 ```
+
+> Omit `version` to track `main`.
 
 With lazy.nvim:
 
@@ -134,6 +138,22 @@ require("knapp").setup({
   cache = vim.fn.stdpath("cache") .. "/knapp",
 })
 ```
+
+## Development
+
+```sh
+make deps    # install busted into ./.luarocks (nothing touches your home dir)
+make tools   # download selene into ./.tools
+make test    # run the suite
+make lint    # stylua --check and selene
+make help    # everything else
+```
+
+Specs run inside Neovim via `nvim -l`, so they get the real `vim` API with no
+stubbing. `make test BUSTED_ARGS=tests/link_spec.lua` runs one file.
+
+`:checkhealth knapp` reports the config, the `.obsidian` files knapp reads, and
+the index state.
 
 ## Rendering
 

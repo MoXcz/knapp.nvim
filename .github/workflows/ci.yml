@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mrcjkb/lua-typecheck-action@v0.2.0
+      - uses: mrcjkb/lua-typecheck-action@v1.1.0
         with:
           directories: lua
           checklevel: Warning

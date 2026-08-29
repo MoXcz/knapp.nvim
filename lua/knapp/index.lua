@@ -10,15 +10,13 @@ local CACHE_VERSION = 1
 
 M.state = {
   built = false,
-  files = {},     -- rel -> { mtime, name, aliases = {}, targets = { "Note A", ... } }
-  by_name = {},   -- lowercased name or alias -> { rel, ... }
-  by_path = {},   -- lowercased vault-relative path without .md -> rel
+  files = {}, -- rel -> { mtime, name, aliases = {}, targets = { "Note A", ... } }
+  by_name = {}, -- lowercased name or alias -> { rel, ... }
+  by_path = {}, -- lowercased vault-relative path without .md -> rel
   backlinks = {}, -- rel -> { src_rel, ... }
 }
 
-local function cache_file()
-  return vim.fs.joinpath(config.opts.cache, "index.json")
-end
+local function cache_file() return vim.fs.joinpath(config.opts.cache, "index.json") end
 
 local function ignored(name)
   for _, ig in ipairs(config.opts.ignore) do
@@ -115,7 +113,9 @@ function M.reindex()
   st.by_name, st.by_path, st.backlinks = {}, {}, {}
   for rel, entry in pairs(st.files) do
     add_name(st.by_name, entry.name, rel)
-    for _, alias in ipairs(entry.aliases or {}) do add_name(st.by_name, alias, rel) end
+    for _, alias in ipairs(entry.aliases or {}) do
+      add_name(st.by_name, alias, rel)
+    end
     st.by_path[rel:sub(1, -4):lower()] = rel
   end
   for rel, entry in pairs(st.files) do
@@ -123,9 +123,7 @@ function M.reindex()
       local dest = M.resolve(target, rel)
       if dest then
         st.backlinks[dest] = st.backlinks[dest] or {}
-        if not vim.tbl_contains(st.backlinks[dest], rel) then
-          table.insert(st.backlinks[dest], rel)
-        end
+        if not vim.tbl_contains(st.backlinks[dest], rel) then table.insert(st.backlinks[dest], rel) end
       end
     end
   end
@@ -145,7 +143,9 @@ function M.resolve(target, from_rel)
   local best, best_score
   for _, rel in ipairs(candidates) do
     local score = (vim.fs.dirname(rel) == from_dir) and 0 or (1 + select(2, rel:gsub("/", "")))
-    if not best_score or score < best_score then best, best_score = rel, score end
+    if not best_score or score < best_score then
+      best, best_score = rel, score
+    end
   end
   return best
 end

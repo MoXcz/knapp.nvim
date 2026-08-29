@@ -1,9 +1,7 @@
 -- Inline formatting: bold, italics, code and wikilinks, with toggle-off.
 local M = {}
 
-local function get_text(sr, sc, er, ec)
-  return table.concat(vim.api.nvim_buf_get_text(0, sr, sc, er, ec, {}), "\n")
-end
+local function get_text(sr, sc, er, ec) return table.concat(vim.api.nvim_buf_get_text(0, sr, sc, er, ec, {}), "\n") end
 
 --- Charwise visual selection as 0-based (start_row, start_col, end_row, end_col_exclusive).
 local function visual_region()
@@ -40,9 +38,7 @@ end
 --- Wrap (or unwrap) a region with `open`/`close`.
 local function toggle(sr, sc, er, ec, open, close)
   local inner = get_text(sr, sc, er, ec)
-  if #inner >= #open + #close
-      and inner:sub(1, #open) == open
-      and inner:sub(-#close) == close then
+  if #inner >= #open + #close and inner:sub(1, #open) == open and inner:sub(-#close) == close then
     vim.api.nvim_buf_set_text(0, sr, sc, er, ec, vim.split(inner:sub(#open + 1, -#close - 1), "\n"))
     return
   end

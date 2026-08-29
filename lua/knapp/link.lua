@@ -12,9 +12,7 @@ function M.encode(s)
   return (s:gsub("[ %%#%?]", function(c) return string.format("%%%02X", string.byte(c)) end))
 end
 
-function M.is_external(target)
-  return target:match("^%a[%w+.-]*:") ~= nil or target == "" or target:sub(1, 1) == "#"
-end
+function M.is_external(target) return target:match("^%a[%w+.-]*:") ~= nil or target == "" or target:sub(1, 1) == "#" end
 
 local function split_target(raw)
   local target, alias = raw, nil
@@ -74,8 +72,13 @@ function M.scan(text)
     if not s then break end
     local target, anchor, alias = split_target(inner)
     out[#out + 1] = {
-      s = s, e = e, kind = "wiki", embed = bang == "!",
-      target = target, anchor = anchor, alias = alias,
+      s = s,
+      e = e,
+      kind = "wiki",
+      embed = bang == "!",
+      target = target,
+      anchor = anchor,
+      alias = alias,
     }
     init = e + 1
   end
@@ -87,7 +90,10 @@ function M.scan(text)
     init = e + 1
     local overlaps = false
     for _, m in ipairs(out) do
-      if s <= m.e and e >= m.s then overlaps = true break end
+      if s <= m.e and e >= m.s then
+        overlaps = true
+        break
+      end
     end
     if not overlaps then
       local raw = M.decode(vim.trim(dest))
@@ -96,8 +102,13 @@ function M.scan(text)
       if not M.is_external(raw) then
         local target, anchor = split_target(raw)
         out[#out + 1] = {
-          s = s, e = e, kind = "md", embed = bang == "!",
-          target = target, anchor = anchor, text = label,
+          s = s,
+          e = e,
+          kind = "md",
+          embed = bang == "!",
+          target = target,
+          anchor = anchor,
+          text = label,
         }
       end
     end
@@ -170,7 +181,9 @@ function M.scan_lines(text)
   local i = 1
   for _, m in ipairs(matches) do
     -- matches are sorted by offset, so the line cursor only moves forward
-    while starts[i + 1] and starts[i + 1] <= m.s do i = i + 1 end
+    while starts[i + 1] and starts[i + 1] <= m.s do
+      i = i + 1
+    end
     m.lnum = i
     m.col = m.s - starts[i] + 1
   end

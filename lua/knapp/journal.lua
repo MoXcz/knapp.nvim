@@ -9,9 +9,7 @@ local template = require("knapp.template")
 local uv = vim.uv
 local M = {}
 
-local function join(folder, name)
-  return folder == "" and (name .. ".md") or (folder .. "/" .. name .. ".md")
-end
+local function join(folder, name) return folder == "" and (name .. ".md") or (folder .. "/" .. name .. ".md") end
 
 --- Vault-relative path of the daily note for `time`.
 function M.daily_path(time)
@@ -26,9 +24,7 @@ function M.weekly_path(time)
   return join(w.folder, date.format(w.format, start))
 end
 
-function M.exists(rel)
-  return uv.fs_stat(config.abs(rel)) ~= nil
-end
+function M.exists(rel) return uv.fs_stat(config.abs(rel)) ~= nil end
 
 --- Open `rel`, seeding it from `template_name` when it does not exist yet.
 function M.open(rel, template_name, ctx)

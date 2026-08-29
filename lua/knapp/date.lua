@@ -2,10 +2,6 @@
 -- writes into its settings and templates.
 local M = {}
 
-local function pad(n, width)
-  return string.format("%0" .. (width or 2) .. "d", n)
-end
-
 -- longest token first: the scanner takes the first match
 local tokens = {
   { "YYYY", function(t) return os.date("%Y", t) end },
@@ -13,30 +9,30 @@ local tokens = {
   { "MMMM", function(t) return os.date("%B", t) end },
   { "dddd", function(t) return os.date("%A", t) end },
   { "DDDD", function(t) return os.date("%j", t) end },
-  { "MMM",  function(t) return os.date("%b", t) end },
-  { "ddd",  function(t) return os.date("%a", t) end },
+  { "MMM", function(t) return os.date("%b", t) end },
+  { "ddd", function(t) return os.date("%a", t) end },
   { "gggg", function(t) return os.date("%G", t) end },
-  { "YY",   function(t) return os.date("%y", t) end },
-  { "MM",   function(t) return os.date("%m", t) end },
-  { "DD",   function(t) return os.date("%d", t) end },
-  { "HH",   function(t) return os.date("%H", t) end },
-  { "hh",   function(t) return os.date("%I", t) end },
-  { "mm",   function(t) return os.date("%M", t) end },
-  { "ss",   function(t) return os.date("%S", t) end },
-  { "WW",   function(t) return os.date("%V", t) end },
-  { "ww",   function(t) return os.date("%V", t) end },
-  { "gg",   function(t) return os.date("%G", t):sub(3) end },
-  { "Y",    function(t) return os.date("%Y", t) end },
-  { "M",    function(t) return tostring(tonumber(os.date("%m", t))) end },
-  { "D",    function(t) return tostring(tonumber(os.date("%d", t))) end },
-  { "H",    function(t) return tostring(tonumber(os.date("%H", t))) end },
-  { "h",    function(t) return tostring(tonumber(os.date("%I", t))) end },
-  { "m",    function(t) return tostring(tonumber(os.date("%M", t))) end },
-  { "s",    function(t) return tostring(tonumber(os.date("%S", t))) end },
-  { "W",    function(t) return tostring(tonumber(os.date("%V", t))) end },
-  { "w",    function(t) return tostring(tonumber(os.date("%V", t))) end },
-  { "A",    function(t) return os.date("%p", t) end },
-  { "a",    function(t) return os.date("%p", t):lower() end },
+  { "YY", function(t) return os.date("%y", t) end },
+  { "MM", function(t) return os.date("%m", t) end },
+  { "DD", function(t) return os.date("%d", t) end },
+  { "HH", function(t) return os.date("%H", t) end },
+  { "hh", function(t) return os.date("%I", t) end },
+  { "mm", function(t) return os.date("%M", t) end },
+  { "ss", function(t) return os.date("%S", t) end },
+  { "WW", function(t) return os.date("%V", t) end },
+  { "ww", function(t) return os.date("%V", t) end },
+  { "gg", function(t) return os.date("%G", t):sub(3) end },
+  { "Y", function(t) return os.date("%Y", t) end },
+  { "M", function(t) return tostring(tonumber(os.date("%m", t))) end },
+  { "D", function(t) return tostring(tonumber(os.date("%d", t))) end },
+  { "H", function(t) return tostring(tonumber(os.date("%H", t))) end },
+  { "h", function(t) return tostring(tonumber(os.date("%I", t))) end },
+  { "m", function(t) return tostring(tonumber(os.date("%M", t))) end },
+  { "s", function(t) return tostring(tonumber(os.date("%S", t))) end },
+  { "W", function(t) return tostring(tonumber(os.date("%V", t))) end },
+  { "w", function(t) return tostring(tonumber(os.date("%V", t))) end },
+  { "A", function(t) return os.date("%p", t) end },
+  { "a", function(t) return os.date("%p", t):lower() end },
 }
 
 --- Format `time` (defaults to now) using a moment-style pattern.
@@ -113,8 +109,6 @@ function M.week_start(time, first_day)
 end
 
 --- Midday timestamp for a Y/M/D, safe against DST edges.
-function M.of(year, month, day)
-  return os.time({ year = year, month = month, day = day, hour = 12, min = 0, sec = 0 })
-end
+function M.of(year, month, day) return os.time({ year = year, month = month, day = day, hour = 12, min = 0, sec = 0 }) end
 
 return M

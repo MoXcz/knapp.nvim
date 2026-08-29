@@ -8,9 +8,7 @@ local ocfg = require("knapp.obsidian_cfg")
 local uv = vim.uv
 local M = {}
 
-local function notify(msg, level)
-  vim.notify(msg, level or vim.log.levels.INFO, { title = "knapp" })
-end
+local function notify(msg, level) vim.notify(msg, level or vim.log.levels.INFO, { title = "knapp" }) end
 
 local function read_file(path)
   local fd = io.open(path, "r")
@@ -73,7 +71,9 @@ function M.rewrite_backlinks(old_rel, new_rel)
   local unique = name_count(new_name, old_rel, new_rel) <= 1
   -- links that go through an alias keep working, so leave them untouched
   local aliases = {}
-  for _, a in ipairs((index.state.files[old_rel] or {}).aliases or {}) do aliases[a:lower()] = true end
+  for _, a in ipairs((index.state.files[old_rel] or {}).aliases or {}) do
+    aliases[a:lower()] = true
+  end
   local changed, skipped = {}, {}
   for _, src in ipairs(sources) do
     local path = config.abs(src)
@@ -201,10 +201,16 @@ function M.merge()
     index.save_cache()
     vim.cmd.edit(vim.fn.fnameescape(config.abs(target_rel)))
     vim.cmd("normal! G")
-    local msg = ("merged %s into %s (%d file%s relinked)")
-        :format(rel, target_rel, #changed, #changed == 1 and "" or "s")
-    notify(#skipped > 0 and (msg .. "\nskipped: " .. table.concat(skipped, ", ")) or msg,
-      #skipped > 0 and vim.log.levels.WARN or nil)
+    local msg = ("merged %s into %s (%d file%s relinked)"):format(
+      rel,
+      target_rel,
+      #changed,
+      #changed == 1 and "" or "s"
+    )
+    notify(
+      #skipped > 0 and (msg .. "\nskipped: " .. table.concat(skipped, ", ")) or msg,
+      #skipped > 0 and vim.log.levels.WARN or nil
+    )
   end)
 end
 
@@ -224,9 +230,7 @@ function M.trash(rel, quiet)
     notify("trash failed: " .. tostring(err), vim.log.levels.ERROR)
     return false
   end
-  if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.api.nvim_buf_delete(bufnr, { force = true })
-  end
+  if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then vim.api.nvim_buf_delete(bufnr, { force = true }) end
   index.update(rel)
   if not quiet then notify("trashed " .. rel) end
   return true
@@ -277,7 +281,9 @@ function M.follow()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local offset = col + 1
-  for i = 1, row - 1 do offset = offset + #lines[i] + 1 end
+  for i = 1, row - 1 do
+    offset = offset + #lines[i] + 1
+  end
   local m = link.at(table.concat(lines, "\n"), offset)
   if not m then
     local ok = pcall(vim.cmd, "normal! gf")

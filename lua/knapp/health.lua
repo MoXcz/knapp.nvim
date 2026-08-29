@@ -68,9 +68,7 @@ local function check_config(opts)
   local function one_of(list)
     return function(v) return vim.tbl_contains(list, v) end
   end
-  local function positive(v)
-    return type(v) == "number" and v > 0
-  end
+  local function positive(v) return type(v) == "number" and v > 0 end
 
   expect("ignore", opts.ignore, function(v) return vim.islist(v) end, "a list of directory names")
   expect("cache", opts.cache, is("string"), "a string")
@@ -84,13 +82,21 @@ local function check_config(opts)
   expect("wrap.enabled", opts.wrap.enabled, is("boolean"), "a boolean")
   expect("wrap.width", opts.wrap.width, positive, "a positive number")
   expect("wrap.pad", opts.wrap.pad, is("boolean"), "a boolean")
-  expect("wrap.min_pad", opts.wrap.min_pad, function(v) return type(v) == "number" and v >= 0 end,
-    "a non-negative number")
+  expect(
+    "wrap.min_pad",
+    opts.wrap.min_pad,
+    function(v) return type(v) == "number" and v >= 0 end,
+    "a non-negative number"
+  )
   expect("wrap.display_line_motions", opts.wrap.display_line_motions, is("boolean"), "a boolean")
 
   expect("backlinks.auto", opts.backlinks.auto, is("boolean"), "a boolean")
-  expect("backlinks.position", opts.backlinks.position, one_of({ "top", "bottom", "left", "right" }),
-    '"top", "bottom", "left" or "right"')
+  expect(
+    "backlinks.position",
+    opts.backlinks.position,
+    one_of({ "top", "bottom", "left", "right" }),
+    '"top", "bottom", "left" or "right"'
+  )
   expect("backlinks.width", opts.backlinks.width, positive, "a positive number")
   expect("backlinks.height", opts.backlinks.height, positive, "a positive number")
 
@@ -160,8 +166,7 @@ local function check_obsidian(opts)
     elseif file.core then
       warn(label .. " - missing, using built-in defaults")
     else
-      info(label .. (" - missing, install the Obsidian %q community plugin or accept the defaults")
-        :format(file.plugin))
+      info(label .. (" - missing, install the Obsidian %q community plugin or accept the defaults"):format(file.plugin))
     end
   end
 end

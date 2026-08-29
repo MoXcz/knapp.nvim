@@ -20,24 +20,26 @@ function M.expand(text, ctx)
   ctx = ctx or {}
   local base = ctx.time or os.time()
   local t = ocfg.get().templates
-  return (text:gsub("{{(.-)}}", function(body)
-    local name, fmt = body:match("^([^:]+):(.*)$")
-    name = name or body
-    local key = name:match("^[%a_]+")
-    local offset = name:sub(#(key or "") + 1)
-    if not key then return "{{" .. body .. "}}" end
-    local lower = key:lower()
-    if lower == "title" then
-      return ctx.title or ""
-    elseif lower == "date" or lower == "time" then
-      local time = base
-      local n, unit = date.parse_offset(offset)
-      if n then time = date.shift(base, n, unit) end
-      if fmt and fmt ~= "" then return date.format(fmt, time) end
-      return date.format(lower == "date" and t.date_format or t.time_format, time)
-    end
-    return "{{" .. body .. "}}"
-  end))
+  return (
+    text:gsub("{{(.-)}}", function(body)
+      local name, fmt = body:match("^([^:]+):(.*)$")
+      name = name or body
+      local key = name:match("^[%a_]+")
+      local offset = name:sub(#(key or "") + 1)
+      if not key then return "{{" .. body .. "}}" end
+      local lower = key:lower()
+      if lower == "title" then
+        return ctx.title or ""
+      elseif lower == "date" or lower == "time" then
+        local time = base
+        local n, unit = date.parse_offset(offset)
+        if n then time = date.shift(base, n, unit) end
+        if fmt and fmt ~= "" then return date.format(fmt, time) end
+        return date.format(lower == "date" and t.date_format or t.time_format, time)
+      end
+      return "{{" .. body .. "}}"
+    end)
+  )
 end
 
 --- Resolve a template name (as written in Obsidian's settings) to a path.

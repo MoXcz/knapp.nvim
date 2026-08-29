@@ -8,23 +8,17 @@ local ns = vim.api.nvim_create_namespace("knapp_pane")
 local state = nil -- { win, buf, items, rel }
 
 local function hl_setup()
-  local function def(name, link)
-    vim.api.nvim_set_hl(0, name, { link = link, default = true })
-  end
+  local function def(name, link) vim.api.nvim_set_hl(0, name, { link = link, default = true }) end
   def("KnappPaneTitle", "Title")
   def("KnappPaneName", "Identifier")
   def("KnappPanePath", "Comment")
   def("KnappPaneEmpty", "Comment")
 end
 
-function M.is_open()
-  return state ~= nil and vim.api.nvim_win_is_valid(state.win)
-end
+function M.is_open() return state ~= nil and vim.api.nvim_win_is_valid(state.win) end
 
 function M.close()
-  if M.is_open() then
-    vim.api.nvim_win_close(state.win, true)
-  end
+  if M.is_open() then vim.api.nvim_win_close(state.win, true) end
   state = nil
 end
 
@@ -67,7 +61,9 @@ local function render(rel, items)
     marks[#marks + 1] = { 2, 0, -1, "KnappPaneEmpty" }
   else
     local width = 0
-    for _, row in ipairs(rows) do width = math.max(width, vim.fn.strdisplaywidth(row.name)) end
+    for _, row in ipairs(rows) do
+      width = math.max(width, vim.fn.strdisplaywidth(row.name))
+    end
     -- keep the name column from eating a wide horizontal pane
     width = math.min(width, math.floor(pane_width * 0.6), 40)
     for i, row in ipairs(rows) do
@@ -89,7 +85,9 @@ local function render(rel, items)
   vim.api.nvim_buf_clear_namespace(state.buf, ns, 0, -1)
   for _, m in ipairs(marks) do
     pcall(vim.api.nvim_buf_set_extmark, state.buf, ns, m[1], m[2], {
-      end_row = m[1], end_col = m[3] < 0 and #(lines[m[1] + 1] or "") or m[3], hl_group = m[4],
+      end_row = m[1],
+      end_col = m[3] < 0 and #(lines[m[1] + 1] or "") or m[3],
+      hl_group = m[4],
     })
   end
   state.rel = rel
@@ -107,7 +105,10 @@ local function jump(cmd)
   if not item then return end
   local target
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if win ~= state.win and is_note_win(win) then target = win break end
+    if win ~= state.win and is_note_win(win) then
+      target = win
+      break
+    end
   end
   if target then
     vim.api.nvim_set_current_win(target)
@@ -182,7 +183,11 @@ function M.open(focus)
 end
 
 function M.toggle()
-  if M.is_open() then M.close() else M.open(false) end
+  if M.is_open() then
+    M.close()
+  else
+    M.open(false)
+  end
 end
 
 return M

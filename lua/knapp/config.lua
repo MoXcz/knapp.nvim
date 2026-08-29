@@ -35,7 +35,7 @@ M.defaults = {
     auto = true,
     -- "bottom" | "top" | "left" | "right"
     position = "right",
-    width = 40,  -- used by "left"/"right"
+    width = 40, -- used by "left"/"right"
     height = 10, -- used by "top"/"bottom"
   },
   -- The padding and backlinks windows hold scratch buffers. 'sessionoptions'
@@ -74,8 +74,6 @@ function M.rel(path)
 end
 
 --- Vault-relative path -> absolute path
-function M.abs(rel)
-  return vim.fs.joinpath(M.opts.vault, rel)
-end
+function M.abs(rel) return vim.fs.joinpath(M.opts.vault, rel) end
 
 return M

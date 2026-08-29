@@ -9,8 +9,12 @@ local M = {}
 local function pick_note(prompt, cb)
   index.ensure()
   local items = {}
-  for _, note in ipairs(index.notes()) do items[#items + 1] = note.rel end
-  vim.ui.select(items, { prompt = prompt }, function(choice) if choice then cb(choice) end end)
+  for _, note in ipairs(index.notes()) do
+    items[#items + 1] = note.rel
+  end
+  vim.ui.select(items, { prompt = prompt }, function(choice)
+    if choice then cb(choice) end
+  end)
 end
 
 function M.find_notes()
@@ -28,7 +32,9 @@ function M.grep_vault()
     Snacks.picker.grep({ cwd = config.opts.vault })
   else
     vim.ui.input({ prompt = "Grep vault: " }, function(q)
-      if q and q ~= "" then vim.cmd(("silent grep! %s %s"):format(vim.fn.shellescape(q), vim.fn.fnameescape(config.opts.vault))) end
+      if q and q ~= "" then
+        vim.cmd(("silent grep! %s %s"):format(vim.fn.shellescape(q), vim.fn.fnameescape(config.opts.vault)))
+      end
     end)
   end
 end
@@ -42,39 +48,40 @@ end
 --- Palette entries. Extend with M.register().
 M.commands = {
   { name = "Merge current note into another note", fn = actions.merge },
-  { name = "Move current note to folder",          fn = actions.move },
-  { name = "Rename current note",                  fn = actions.rename },
-  { name = "Open note",                            fn = function() M.find_notes() end },
-  { name = "Search in vault",                      fn = function() M.grep_vault() end },
-  { name = "New note",                             fn = function() M.new_note() end },
-  { name = "Toggle backlinks pane",                fn = function() require("knapp.pane").toggle() end },
-  { name = "Toggle readable width",                fn = function() require("knapp.view").toggle() end },
-  { name = "Show backlinks in quickfix",           fn = actions.backlinks },
-  { name = "Follow link under cursor",             fn = actions.follow },
-  { name = "Toggle bold",                          fn = format.action("bold") },
-  { name = "Toggle italics",                       fn = format.action("italic") },
-  { name = "Toggle code",                          fn = format.action("code") },
-  { name = "Toggle highlight",                     fn = format.action("highlight") },
-  { name = "Toggle strikethrough",                 fn = format.action("strike") },
-  { name = "Insert wikilink",                      fn = format.action("link") },
-  { name = "Trash current note",                   fn = function()
-    local rel = actions.current()
-    if rel then actions.trash(rel) end
-  end },
-  { name = "Open today's daily note",     fn = function() require("knapp.journal").daily() end },
-  { name = "Open yesterday's daily note",  fn = function() require("knapp.journal").daily(-1) end },
-  { name = "Open tomorrow's daily note",   fn = function() require("knapp.journal").daily(1) end },
+  { name = "Move current note to folder", fn = actions.move },
+  { name = "Rename current note", fn = actions.rename },
+  { name = "Open note", fn = function() M.find_notes() end },
+  { name = "Search in vault", fn = function() M.grep_vault() end },
+  { name = "New note", fn = function() M.new_note() end },
+  { name = "Toggle backlinks pane", fn = function() require("knapp.pane").toggle() end },
+  { name = "Toggle readable width", fn = function() require("knapp.view").toggle() end },
+  { name = "Show backlinks in quickfix", fn = actions.backlinks },
+  { name = "Follow link under cursor", fn = actions.follow },
+  { name = "Toggle bold", fn = format.action("bold") },
+  { name = "Toggle italics", fn = format.action("italic") },
+  { name = "Toggle code", fn = format.action("code") },
+  { name = "Toggle highlight", fn = format.action("highlight") },
+  { name = "Toggle strikethrough", fn = format.action("strike") },
+  { name = "Insert wikilink", fn = format.action("link") },
+  {
+    name = "Trash current note",
+    fn = function()
+      local rel = actions.current()
+      if rel then actions.trash(rel) end
+    end,
+  },
+  { name = "Open today's daily note", fn = function() require("knapp.journal").daily() end },
+  { name = "Open yesterday's daily note", fn = function() require("knapp.journal").daily(-1) end },
+  { name = "Open tomorrow's daily note", fn = function() require("knapp.journal").daily(1) end },
   { name = "Open this week's weekly note", fn = function() require("knapp.journal").weekly() end },
   { name = "Open last week's weekly note", fn = function() require("knapp.journal").weekly(-1) end },
-  { name = "New fleeting note (zettel)",   fn = function() require("knapp.journal").zettel() end },
-  { name = "Open calendar",                fn = function() require("knapp.calendar").open() end },
-  { name = "Insert template",              fn = function() require("knapp.template").insert() end },
+  { name = "New fleeting note (zettel)", fn = function() require("knapp.journal").zettel() end },
+  { name = "Open calendar", fn = function() require("knapp.calendar").open() end },
+  { name = "Insert template", fn = function() require("knapp.template").insert() end },
   { name = "Rebuild vault index", fn = actions.reindex },
 }
 
-function M.register(name, fn)
-  table.insert(M.commands, { name = name, fn = fn })
-end
+function M.register(name, fn) table.insert(M.commands, { name = name, fn = fn }) end
 
 function M.open()
   local names = vim.tbl_map(function(c) return c.name end, M.commands)

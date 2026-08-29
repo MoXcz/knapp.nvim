@@ -5,13 +5,11 @@ local config = require("knapp.config")
 
 local M = {}
 
-local pads = {}   -- note window -> padding window
-local busy = false      -- re-entrancy guard for refresh()
+local pads = {} -- note window -> padding window
+local busy = false -- re-entrancy guard for refresh()
 local navigating = false -- re-entrancy guard for leave_pad()
 
-local function valid(win)
-  return win and vim.api.nvim_win_is_valid(win)
-end
+local function valid(win) return win and vim.api.nvim_win_is_valid(win) end
 
 --- A normal (non-float) window showing a vault note.
 function M.is_note_win(win)
@@ -32,9 +30,7 @@ end
 local function drop_pad(note_win)
   local pad = pads[note_win]
   pads[note_win] = nil
-  if valid(pad) then
-    pcall(vim.api.nvim_win_close, pad, true)
-  end
+  if valid(pad) then pcall(vim.api.nvim_win_close, pad, true) end
 end
 
 local function make_pad(note_win, width)
@@ -101,9 +97,7 @@ function M.pad(win)
   else
     pad = make_pad(win, pad_width)
   end
-  if vim.api.nvim_win_get_width(win) ~= w.width then
-    vim.api.nvim_win_set_width(win, w.width)
-  end
+  if vim.api.nvim_win_get_width(win) ~= w.width then vim.api.nvim_win_set_width(win, w.width) end
 end
 
 --- Re-pad every note window in the current tab.
@@ -125,7 +119,9 @@ end
 
 --- Close every padding window (used when the feature is toggled off).
 function M.clear()
-  for note_win in pairs(pads) do drop_pad(note_win) end
+  for note_win in pairs(pads) do
+    drop_pad(note_win)
+  end
   pads = {}
 end
 
@@ -173,9 +169,7 @@ function M.leave_pad()
     vim.cmd("wincmd p")
   end
   navigating = false
-  if vim.fn.exists(":" .. NAV[dir]) == 2 then
-    vim.cmd(NAV[dir])
-  end
+  if vim.fn.exists(":" .. NAV[dir]) == 2 then vim.cmd(NAV[dir]) end
 end
 
 return M

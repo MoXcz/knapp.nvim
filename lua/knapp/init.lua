@@ -35,8 +35,12 @@ local function attach(bufnr)
       return function() return vim.v.count == 0 and ("g" .. key) or key end
     end
     for _, key in ipairs({ "j", "k" }) do
-      vim.keymap.set({ "n", "x" }, key, motion(key),
-        { buffer = bufnr, expr = true, silent = true, desc = "knapp: move by display line" })
+      vim.keymap.set(
+        { "n", "x" },
+        key,
+        motion(key),
+        { buffer = bufnr, expr = true, silent = true, desc = "knapp: move by display line" }
+      )
     end
     vim.keymap.set({ "n", "x" }, "<Down>", motion("j"), { buffer = bufnr, expr = true, silent = true })
     vim.keymap.set({ "n", "x" }, "<Up>", motion("k"), { buffer = bufnr, expr = true, silent = true })
@@ -84,9 +88,7 @@ local function global_keys()
   local keys = config.opts.keys
   if not keys.enabled then return end
   local p = keys.prefix
-  local function set(lhs, rhs, desc)
-    vim.keymap.set("n", p .. lhs, rhs, { desc = "knapp: " .. desc, silent = true })
-  end
+  local function set(lhs, rhs, desc) vim.keymap.set("n", p .. lhs, rhs, { desc = "knapp: " .. desc, silent = true }) end
   set("d", function() require("knapp.journal").daily() end, "daily note")
   set("y", function() require("knapp.journal").daily(-1) end, "yesterday's note")
   set("w", function() require("knapp.journal").weekly() end, "weekly note")
@@ -100,9 +102,7 @@ function M.setup(opts)
   local group = vim.api.nvim_create_augroup("knapp", { clear = true })
   global_keys()
 
-  if config.opts.fix_sessionoptions then
-    vim.opt.sessionoptions:remove("blank")
-  end
+  if config.opts.fix_sessionoptions then vim.opt.sessionoptions:remove("blank") end
 
   -- keep scratch windows out of a session written on the way out (:restart)
   vim.api.nvim_create_autocmd("VimLeavePre", {

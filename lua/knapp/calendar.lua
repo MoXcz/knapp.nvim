@@ -12,9 +12,7 @@ local state = nil -- { buf, win, year, month, cells, weeks }
 
 local function hl_setup()
   local function def(name, link)
-    if vim.fn.hlexists(name) == 0 or true then
-      vim.api.nvim_set_hl(0, name, { link = link, default = true })
-    end
+    if vim.fn.hlexists(name) == 0 or true then vim.api.nvim_set_hl(0, name, { link = link, default = true }) end
   end
   def("KnappCalHeader", "Title")
   def("KnappCalWeekday", "Comment")
@@ -45,9 +43,7 @@ local function build(year, month)
     "Wk  " .. table.concat(weekdays, " "),
   }
   local cells, weeks, marks = {}, {}, {}
-  local row = { [0] = nil }
   local cols = {}
-  local line_no = #lines -- 0-based index of the line we are about to add
   local function flush(week_time)
     local text = { ("%2s "):format(date.format("WW", week_time)) }
     for c = 1, 7 do
@@ -59,7 +55,10 @@ local function build(year, month)
       if cols[c] then
         local col_start = 3 + (c - 1) * 3 + 1
         cells[#cells + 1] = {
-          line = #lines - 1, col_start = col_start, col_end = col_start + 2, day = cols[c].day,
+          line = #lines - 1,
+          col_start = col_start,
+          col_end = col_start + 2,
+          day = cols[c].day,
         }
         local hl
         if cols[c].day == today.day and month == today.month and year == today.year then
@@ -67,9 +66,7 @@ local function build(year, month)
         elseif dailies[cols[c].day] then
           hl = "KnappCalHasNote"
         end
-        if hl then
-          marks[#marks + 1] = { #lines - 1, col_start, col_start + 2, hl }
-        end
+        if hl then marks[#marks + 1] = { #lines - 1, col_start, col_start + 2, hl } end
       end
     end
     marks[#marks + 1] = { #lines - 1, 0, 3, "KnappCalWeek" }
@@ -100,7 +97,14 @@ local function render()
   vim.bo[state.buf].modifiable = false
   vim.api.nvim_buf_clear_namespace(state.buf, ns, 0, -1)
   for _, m in ipairs(marks) do
-    pcall(vim.api.nvim_buf_set_extmark, state.buf, ns, m[1], m[2], { end_col = m[3] < 0 and nil or m[3], end_row = m[3] < 0 and m[1] + 1 or nil, hl_group = m[4] })
+    pcall(
+      vim.api.nvim_buf_set_extmark,
+      state.buf,
+      ns,
+      m[1],
+      m[2],
+      { end_col = m[3] < 0 and nil or m[3], end_row = m[3] < 0 and m[1] + 1 or nil, hl_group = m[4] }
+    )
   end
   vim.api.nvim_win_set_height(state.win, #lines)
 end
@@ -108,17 +112,13 @@ end
 local function day_under_cursor()
   local row, col = unpack(vim.api.nvim_win_get_cursor(state.win))
   for _, cell in ipairs(state.cells) do
-    if cell.line == row - 1 and col >= cell.col_start - 1 and col < cell.col_end then
-      return cell.day
-    end
+    if cell.line == row - 1 and col >= cell.col_start - 1 and col < cell.col_end then return cell.day end
   end
   return nil
 end
 
 local function close()
-  if state and vim.api.nvim_win_is_valid(state.win) then
-    vim.api.nvim_win_close(state.win, true)
-  end
+  if state and vim.api.nvim_win_is_valid(state.win) then vim.api.nvim_win_close(state.win, true) end
   state = nil
 end
 
@@ -188,12 +188,18 @@ function M.open()
     close()
     if day then
       local time = date.of(year, month, day)
-      journal.open(journal.daily_path(time), ocfg.get().daily.template,
-        { time = time, title = vim.fs.basename(journal.daily_path(time)):sub(1, -4) })
+      journal.open(
+        journal.daily_path(time),
+        ocfg.get().daily.template,
+        { time = time, title = vim.fs.basename(journal.daily_path(time)):sub(1, -4) }
+      )
     elseif week_time then
       local rel = journal.weekly_path(week_time)
-      journal.open(rel, ocfg.get().weekly.template,
-        { time = date.week_start(week_time, ocfg.get().weekly.week_start), title = vim.fs.basename(rel):sub(1, -4) })
+      journal.open(
+        rel,
+        ocfg.get().weekly.template,
+        { time = date.week_start(week_time, ocfg.get().weekly.week_start), title = vim.fs.basename(rel):sub(1, -4) }
+      )
     end
   end, "open note under cursor")
   map("W", function()
@@ -202,8 +208,11 @@ function M.open()
     if not week_time then return end
     close()
     local rel = journal.weekly_path(week_time)
-    journal.open(rel, ocfg.get().weekly.template,
-      { time = date.week_start(week_time, ocfg.get().weekly.week_start), title = vim.fs.basename(rel):sub(1, -4) })
+    journal.open(
+      rel,
+      ocfg.get().weekly.template,
+      { time = date.week_start(week_time, ocfg.get().weekly.week_start), title = vim.fs.basename(rel):sub(1, -4) }
+    )
   end, "open weekly note")
 end
 

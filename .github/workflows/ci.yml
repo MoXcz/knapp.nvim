@@ -58,4 +58,8 @@ jobs:
       - uses: mrcjkb/lua-typecheck-action@v0.2.0
         with:
           directories: lua
-          checkLevel: Warning
+          checklevel: Warning
+          # without this the workspace root is lua/, so the repo-root
+          # .luarc.json - and with it the `vim` global - is never found.
+          # the action prepends the workspace, so keep this relative
+          configpath: .luarc.json

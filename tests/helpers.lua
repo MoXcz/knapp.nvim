@@ -81,6 +81,14 @@ end
 function M.cleanup()
   M.captured = {}
   require("knapp.actions").clear_scan_cache()
+  pcall(function() require("knapp.pane").close() end)
+  pcall(function() require("knapp.view").clear() end)
+  -- global keymaps outlive a spec; find them by the description knapp sets
+  for _, mode in ipairs({ "n", "x", "i" }) do
+    for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
+      if type(m.desc) == "string" and m.desc:match("^knapp:") then pcall(vim.keymap.del, mode, m.lhs) end
+    end
+  end
   local index = require("knapp.index")
   index.state.built = false
   index.state.files, index.state.by_name, index.state.by_path, index.state.backlinks = {}, {}, {}, {}

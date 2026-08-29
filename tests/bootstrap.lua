@@ -16,6 +16,10 @@ vim.fn.delete(root, "rf")
 local config = require("knapp.config")
 config.defaults.cache = vim.fs.joinpath(vim.uv.os_tmpdir(), ("knapp-test-%d"):format(vim.uv.os_getpid()), "cache")
 
+-- Keymaps are defined with <leader>, which is resolved when the mapping is
+-- created. Pin it so specs can assert on concrete left-hand sides.
+vim.g.mapleader = " "
+
 -- Keep failures readable: no swap files, no shada, no user config leaking in.
 vim.opt.swapfile = false
 vim.opt.shadafile = "NONE"

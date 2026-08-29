@@ -77,7 +77,8 @@ function M.zettel()
     title = vim.trim(title)
     local time = os.time()
     local prefix = date.format(z.format, time)
-    local name = title ~= "" and (prefix .. " - " .. title) or prefix
+    local sep = config.opts.journal.zettel_separator
+    local name = title ~= "" and (prefix .. sep .. title) or prefix
     M.open(join(z.folder, name), z.template, { time = time, title = title })
   end)
 end

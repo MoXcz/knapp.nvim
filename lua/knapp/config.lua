@@ -7,7 +7,13 @@ M.defaults = {
   -- Directories skipped by the indexer (relative to vault root)
   ignore = { ".obsidian", ".trash", ".git", ".stfolder" },
   keys = {
+    -- Bind the documented defaults. Turning this off leaves every action
+    -- reachable as a <Plug> mapping; see :h knapp-keymaps.
     enabled = true,
+    -- The journal keymaps below exist outside the vault too, since a daily
+    -- note is usually opened from an unrelated buffer. Set false to keep
+    -- knapp entirely inside the vault.
+    global = true,
     prefix = "<leader>o",
     palette = "<C-p>",
     -- Insert-mode <C-b>/<C-l> for bold/link. <C-i> is left alone: terminals
@@ -29,8 +35,18 @@ M.defaults = {
     min_pad = 4,
     -- j/k walk display lines instead of jumping over a wrapped paragraph
     display_line_motions = true,
+    -- Commands to fall through to when a window motion runs off the far side
+    -- of the padding window. Ignored unless the command exists, so the
+    -- vim-tmux-navigator defaults are inert without it.
+    nav_commands = {
+      h = "TmuxNavigateLeft",
+      l = "TmuxNavigateRight",
+      j = "TmuxNavigateDown",
+      k = "TmuxNavigateUp",
+    },
   },
   backlinks = {
+    enabled = true,
     -- open the pane as soon as a note is opened
     auto = true,
     -- "bottom" | "top" | "left" | "right"
@@ -38,9 +54,19 @@ M.defaults = {
     width = 40, -- used by "left"/"right"
     height = 10, -- used by "top"/"bottom"
   },
+  journal = {
+    -- Fleeting notes are named "<timestamp><separator><title>".
+    zettel_separator = " - ",
+  },
   -- The padding and backlinks windows hold scratch buffers. 'sessionoptions'
   -- ships with "blank", which stores them in sessions, so :mksession and
   -- :restart come back with stray empty windows. Drop "blank" to avoid it.
+  --
+  -- This edits a global option, which a plugin should not do lightly. There is
+  -- no alternative: Nvim has no pre-session autocommand (only SessionLoadPost),
+  -- and :restart runs :mksession before quitting, so closing the windows on
+  -- VimLeavePre -- which knapp also does -- happens too late. Set false to
+  -- keep 'sessionoptions' untouched and live with the stray windows.
   fix_sessionoptions = true,
   cache = vim.fs.joinpath(vim.fn.stdpath("cache"), "knapp"),
 }

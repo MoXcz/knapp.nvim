@@ -136,8 +136,6 @@ function M.toggle()
   vim.notify("readable width " .. (w.pad and "on" or "off"), vim.log.levels.INFO, { title = "knapp" })
 end
 
-local NAV = { h = "TmuxNavigateLeft", l = "TmuxNavigateRight", j = "TmuxNavigateDown", k = "TmuxNavigateUp" }
-
 --- Direction the cursor was travelling when it landed in the pad.
 local function travel_direction(from, to)
   if not valid(from) then return "l" end

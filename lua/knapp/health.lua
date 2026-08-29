@@ -75,6 +75,7 @@ local function check_config(opts)
   expect("fix_sessionoptions", opts.fix_sessionoptions, is("boolean"), "a boolean")
 
   expect("keys.enabled", opts.keys.enabled, is("boolean"), "a boolean")
+  expect("keys.global", opts.keys.global, is("boolean"), "a boolean")
   expect("keys.prefix", opts.keys.prefix, is("string"), "a string")
   expect("keys.insert", opts.keys.insert, is("boolean"), "a boolean")
   expect("keys.swap_ci", opts.keys.swap_ci, is("boolean"), "a boolean")
@@ -89,7 +90,9 @@ local function check_config(opts)
     "a non-negative number"
   )
   expect("wrap.display_line_motions", opts.wrap.display_line_motions, is("boolean"), "a boolean")
+  expect("wrap.nav_commands", opts.wrap.nav_commands, is("table"), "a table of direction -> command name")
 
+  expect("backlinks.enabled", opts.backlinks.enabled, is("boolean"), "a boolean")
   expect("backlinks.auto", opts.backlinks.auto, is("boolean"), "a boolean")
   expect(
     "backlinks.position",
@@ -99,6 +102,8 @@ local function check_config(opts)
   )
   expect("backlinks.width", opts.backlinks.width, positive, "a positive number")
   expect("backlinks.height", opts.backlinks.height, positive, "a positive number")
+
+  expect("journal.zettel_separator", opts.journal.zettel_separator, is("string"), "a string")
 
   if #problems == 0 then
     ok("configuration is valid")
@@ -193,6 +198,16 @@ local function check_index()
 end
 
 local function check_optional()
+  if opts.fix_sessionoptions then
+    if vim.tbl_contains(vim.opt.sessionoptions:get(), "blank") then
+      warn("fix_sessionoptions is on but 'sessionoptions' still contains \"blank\"", {
+        "Something re-added it after setup(). :mksession will capture knapp's scratch windows.",
+      })
+    else
+      info("'sessionoptions' has had \"blank\" removed by knapp (fix_sessionoptions)")
+    end
+  end
+
   if pcall(require, "snacks") then
     ok("snacks.nvim - picker-backed palette, note finder and vault grep")
   else

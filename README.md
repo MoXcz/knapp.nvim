@@ -16,6 +16,11 @@ format and template comes from `<vault>/.obsidian/*.json`, so Obsidian stays the
 single source of truth and nothing is configured twice. (The `vim.pack` install
 snippet below needs 0.12+; nothing else does.)
 
+Core settings come from `app.json`, `daily-notes.json` and `templates.json`.
+Weekly notes read the **Calendar** community plugin's settings and zettel
+prefixes read **Zettelkasten Prefixer**; without those plugins, knapp falls
+back to their defaults. `:checkhealth knapp` lists which files it found.
+
 ## Install
 
 With `vim.pack` (Neovim 0.12+):
@@ -100,6 +105,29 @@ Insert mode gets `<C-b>` bold and `<C-l>` wikilink. `<C-i>` italics is opt-in
 (`keys.swap_ci`): terminals send `<C-i>` as `<Tab>`, so it only works under the
 kitty keyboard protocol, and it also maps `<C-k>` to jumplist-forward.
 
+Every action is also a `<Plug>` mapping, so nothing above has to be accepted as
+given:
+
+```lua
+-- rebind one action; knapp then leaves its own default for it alone
+vim.keymap.set("n", "<leader>rn", "<Plug>(KnappRename)")
+
+-- or take none of the defaults and bind what you want
+require("knapp").setup({ vault = "~/notes", keys = { enabled = false } })
+vim.keymap.set("n", "<leader>k", "<Plug>(KnappPalette)")
+```
+
+The `<Plug>` names are `Knapp` plus the action: `Follow`, `Palette`, `Bold`,
+`Italic`, `Code`, `Link`, `Highlight`, `InsertBold`, `InsertLink`,
+`InsertItalic`, `Rename`, `Move`, `Merge`, `BacklinksPane`, `BacklinksQf`,
+`NewNote`, `FindNotes`, `GrepVault`, `Reindex`, `ToggleWidth`,
+`InsertTemplate`, `Daily`, `Yesterday`, `Weekly`, `Zettel`, `Calendar`.
+
+Defaults are only bound where you have not already bound the matching `<Plug>`
+yourself (`hasmapto()`), so rebinding one action does not leave a stray default
+behind. `keys.global = false` drops the five journal keymaps that would
+otherwise exist outside the vault.
+
 `:Knapp <subcommand>` covers the same ground with completion: `palette`,
 `rename`, `move`, `merge`, `backlinks`, `follow`, `new`, `find`, `grep`,
 `index`, `daily [offset]`, `weekly [offset]`, `zettel`, `calendar`,
@@ -114,7 +142,8 @@ require("knapp").setup({
   vault = nil, -- required
   ignore = { ".obsidian", ".trash", ".git", ".stfolder" },
   keys = {
-    enabled = true,
+    enabled = true,  -- false: no default bindings, <Plug> maps still defined
+    global = true,   -- false: journal keys only inside the vault
     prefix = "<leader>o",
     palette = "<C-p>",
     insert = true,   -- insert-mode <C-b> / <C-l>
@@ -126,12 +155,25 @@ require("knapp").setup({
     pad = true,                  -- false: wrap at the window edge
     min_pad = 4,
     display_line_motions = true, -- j/k walk display lines
+    -- run when a window motion leaves the far side of the padding window;
+    -- ignored unless the command exists, so these are inert without
+    -- vim-tmux-navigator
+    nav_commands = {
+      h = "TmuxNavigateLeft",
+      l = "TmuxNavigateRight",
+      j = "TmuxNavigateDown",
+      k = "TmuxNavigateUp",
+    },
   },
   backlinks = {
+    enabled = true,     -- false: no pane, no auto-open, no BufEnter work
     auto = true,
     position = "right", -- "right" | "left" | "top" | "bottom"
     width = 40,         -- "left"/"right"
     height = 10,        -- "top"/"bottom"
+  },
+  journal = {
+    zettel_separator = " - ", -- "<timestamp> - <title>.md"
   },
   -- 'sessionoptions' contains "blank", which stores the plugin's scratch
   -- windows in sessions and brings them back empty after :restart

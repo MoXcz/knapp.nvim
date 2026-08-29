@@ -167,7 +167,10 @@ function M.leave_pad()
     vim.cmd("wincmd p")
   end
   navigating = false
-  if vim.fn.exists(":" .. NAV[dir]) == 2 then vim.cmd(NAV[dir]) end
+  -- Nothing on the far side of the pad inside Nvim: let a configured navigator
+  -- carry the motion out of Nvim entirely (tmux, wezterm, ...).
+  local cmd = (config.opts.wrap.nav_commands or {})[dir]
+  if cmd and cmd ~= "" and vim.fn.exists(":" .. cmd) == 2 then vim.cmd(cmd) end
 end
 
 return M

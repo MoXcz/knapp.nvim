@@ -51,9 +51,14 @@ test:
 bench:
 	nvim -l scripts/bench.lua
 
+# `cmd || echo` would make this target succeed even when the linter reports
+# violations, which is worse than not running it at all: it reads as green.
+# A missing tool warns; a tool that finds something fails.
 lint:
-	@command -v stylua >/dev/null && stylua --check lua tests || echo "stylua not installed, skipping"
-	@test -x "$(SELENE)" && $(SELENE) lua tests || echo "selene not installed - run: make tools"
+	@if command -v stylua >/dev/null; then stylua --check lua tests; \
+	else echo "stylua not installed, skipping"; fi
+	@if test -x "$(SELENE)"; then $(SELENE) lua tests; \
+	else echo "selene not installed - run: make tools"; fi
 
 format:
 	stylua lua tests

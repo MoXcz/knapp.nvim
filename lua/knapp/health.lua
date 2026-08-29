@@ -197,17 +197,23 @@ local function check_index()
   ok(("index built: %d notes, %d of them linked to"):format(notes, linked))
 end
 
-local function check_optional()
-  if opts.fix_sessionoptions then
-    if vim.tbl_contains(vim.opt.sessionoptions:get(), "blank") then
-      warn("fix_sessionoptions is on but 'sessionoptions' still contains \"blank\"", {
-        "Something re-added it after setup(). :mksession will capture knapp's scratch windows.",
-      })
-    else
-      info("'sessionoptions' has had \"blank\" removed by knapp (fix_sessionoptions)")
-    end
+--- knapp edits a global option when `fix_sessionoptions` is set. A plugin doing
+--- that should at least say so out loud. See |knapp-config-sessionoptions|.
+local function check_sessionoptions(opts)
+  if not opts.fix_sessionoptions then
+    info("fix_sessionoptions is off - :mksession will capture knapp's scratch windows")
+    return
   end
+  if vim.tbl_contains(vim.opt.sessionoptions:get(), "blank") then
+    warn("fix_sessionoptions is on but 'sessionoptions' still contains \"blank\"", {
+      "Something re-added it after setup(). :mksession will capture knapp's scratch windows.",
+    })
+  else
+    info("'sessionoptions' has had \"blank\" removed by knapp (fix_sessionoptions)")
+  end
+end
 
+local function check_optional()
   if pcall(require, "snacks") then
     ok("snacks.nvim - picker-backed palette, note finder and vault grep")
   else
@@ -251,6 +257,8 @@ function M.check()
 
   start("knapp.nvim: Obsidian settings")
   check_obsidian(opts)
+
+  check_sessionoptions(opts)
 
   start("knapp.nvim: index")
   check_cache(opts)

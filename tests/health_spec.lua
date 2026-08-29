@@ -18,6 +18,22 @@ describe("health", function()
     assert.matches("minimal reproducer config", text)
   end)
 
+  -- A check that raises is reported inside the buffer rather than propagating,
+  -- so asserting on individual lines can pass while a later check is crashing.
+  -- This one asserts the report reaches its end.
+  it("runs every check without raising", function()
+    helpers.setup({ ["a.md"] = "[[b]]", ["b.md"] = "" }, { ["app.json"] = {} })
+    local text = report()
+    assert.is_nil(text:match("Failed to run healthcheck"), "a check raised:\n" .. text)
+    assert.matches("optional dependencies", text)
+    assert.matches("render%-markdown", text) -- the last line check() emits
+  end)
+
+  it("reports what it did to 'sessionoptions'", function()
+    helpers.setup({}, { ["app.json"] = {} }, { fix_sessionoptions = false })
+    assert.matches("fix_sessionoptions is off", report())
+  end)
+
   it("reports a healthy vault", function()
     helpers.setup({ ["a.md"] = "[[b]]", ["b.md"] = "" }, {
       ["app.json"] = { newFileFolderPath = "" },

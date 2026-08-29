@@ -36,6 +36,10 @@ With lazy.nvim:
 `snacks.nvim` is optional; when present its picker backs the palette, note
 finder and vault grep. Everything falls back to `vim.ui.select`.
 
+Run `:checkhealth knapp` after setup. Nearly everything knapp does is derived
+from `<vault>/.obsidian/*.json`, so when a note lands in the wrong folder the
+report names the file that is missing or malformed.
+
 ## What it does
 
 **Link index.** One pass over the vault builds name -> file and file ->

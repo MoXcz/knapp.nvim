@@ -22,7 +22,8 @@ local state = nil
 
 local function hl_setup()
   local function def(name, link)
-    if vim.fn.hlexists(name) == 0 or true then vim.api.nvim_set_hl(0, name, { link = link, default = true }) end
+    -- `default = true` already yields to a colorscheme that defines these
+    vim.api.nvim_set_hl(0, name, { link = link, default = true })
   end
   def("KnappCalHeader", "Title")
   def("KnappCalWeekday", "Comment")
@@ -36,16 +37,16 @@ local WEEKDAYS_SUN = { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" }
 
 --- Column (1-7) of a weekday within the grid.
 local function column_of(time, first_day)
-  local wday = os.date("*t", time).wday -- 1 = Sunday
+  local wday = date.parts(time).wday -- 1 = Sunday
   if first_day == "sunday" then return wday end
   return (wday + 5) % 7 + 1
 end
 
 local function build(year, month)
   local first_day = ocfg.get().weekly.week_start
-  local days_in_month = os.date("*t", date.of(year, month + 1, 0)).day
+  local days_in_month = date.parts(date.of(year, month + 1, 0)).day
   local dailies = journal.month_dailies(year, month)
-  local today = os.date("*t")
+  local today = date.parts()
   local weekdays = first_day == "sunday" and WEEKDAYS_SUN or WEEKDAYS_MON
 
   local lines = {
@@ -136,7 +137,7 @@ end
 
 local function goto_today()
   if not state then return end
-  local t = os.date("*t")
+  local t = date.parts()
   state.year, state.month = t.year, t.month
   render()
   for _, cell in ipairs(state.cells) do
@@ -149,7 +150,7 @@ end
 
 local function shift_month(n)
   if not state then return end
-  local t = os.date("*t", date.of(state.year, state.month + n, 1))
+  local t = date.parts(date.of(state.year, state.month + n, 1))
   state.year, state.month = t.year, t.month
   render()
   vim.api.nvim_win_set_cursor(state.win, { math.min(3, vim.api.nvim_buf_line_count(state.buf)), 4 })
@@ -165,8 +166,7 @@ function M.open()
   end
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "knapp-calendar"
-  local t = os.date("*t")
+  local t = date.parts()
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     width = 27,
@@ -182,6 +182,8 @@ function M.open()
   state = { buf = buf, win = win, year = t.year, month = t.month, cells = {}, weeks = {} }
   render()
   goto_today()
+  -- last, so ftplugin/knapp-calendar.lua can override the options set above
+  vim.bo[buf].filetype = "knapp-calendar"
 
   local function map(lhs, fn, desc)
     vim.keymap.set("n", lhs, fn, { buffer = buf, nowait = true, silent = true, desc = "knapp: " .. desc })

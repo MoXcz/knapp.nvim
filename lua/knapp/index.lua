@@ -40,7 +40,7 @@ local function walk()
         local rel = dir == "" and name or (dir .. "/" .. name)
         if kind == "directory" then
           if not ignored(name) and not ignored(rel) then stack[#stack + 1] = rel end
-        elseif name:sub(-3) == ".md" then
+        elseif util.is_md(name) then
           local st = uv.fs_stat(config.abs(rel))
           out[rel] = st and st.mtime.sec or 0
         end

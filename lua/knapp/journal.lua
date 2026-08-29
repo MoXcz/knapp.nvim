@@ -86,7 +86,7 @@ end
 --- The daily/weekly notes that already exist in a month, as { [day] = rel }.
 function M.month_dailies(year, month)
   local out = {}
-  local days = tonumber(os.date("*t", date.of(year, month + 1, 0)).day)
+  local days = date.parts(date.of(year, month + 1, 0)).day
   for day = 1, days do
     local rel = M.daily_path(date.of(year, month, day))
     if M.exists(rel) then out[day] = rel end

@@ -47,12 +47,15 @@ describe("health", function()
   end)
 
   it("flags a bad option value", function()
-    helpers.setup({}, nil, { backlinks = { position = "rihgt" } })
+    helpers.setup({}, { ["app.json"] = {} })
+    -- setup() repairs what it is given, so a bad value can only be seen here
+    -- if something changed config.opts afterwards
+    require("knapp.config").opts.backlinks.position = "rihgt"
     assert.matches("backlinks%.position", report())
   end)
 
   it("flags an unknown option without flagging vault", function()
-    helpers.setup({}, nil, { nonsense = true })
+    helpers.setup({}, { ["app.json"] = {} }, { nonsense = true })
     local text = report()
     assert.matches("unknown option `nonsense`", text)
     assert.is_nil(text:match("unknown option `vault`"))

@@ -43,6 +43,14 @@ function M.decode_json(text)
   return value
 end
 
+--- Does `name` look like a markdown note?
+---
+--- Case-insensitive: Obsidian happily indexes `Note.MD`, and on a
+--- case-insensitive filesystem the same file can be reached either way.
+---@param name string
+---@return boolean
+function M.is_md(name) return type(name) == "string" and name:sub(-3):lower() == ".md" end
+
 --- Wrap `fn` so that a burst of calls collapses into one, `ms` after the last.
 ---
 --- `WinResized` fires continuously while a split boundary is dragged, and

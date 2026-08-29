@@ -11,7 +11,6 @@ local tokens = {
   { "DDDD", function(t) return os.date("%j", t) end },
   { "MMM", function(t) return os.date("%b", t) end },
   { "ddd", function(t) return os.date("%a", t) end },
-  { "gggg", function(t) return os.date("%G", t) end },
   { "YY", function(t) return os.date("%y", t) end },
   { "MM", function(t) return os.date("%m", t) end },
   { "DD", function(t) return os.date("%d", t) end },
@@ -80,9 +79,32 @@ function M.format(fmt, time)
   return table.concat(out)
 end
 
+--- Broken-down time. The stdlib annotation types every field as
+--- `integer|string`, because `os.date` can be asked for either; `*t` only ever
+--- returns numbers, and saying so keeps arithmetic on these fields checkable.
+--- Extends `osdateparam` so the result can be handed straight back to
+--- `os.time`.
+---@class knapp.DateParts : osdateparam
+---@field year integer
+---@field month integer
+---@field day integer
+---@field hour integer
+---@field min integer
+---@field sec integer
+---@field wday integer 1 = Sunday
+---@field yday integer
+---@field isdst boolean
+
+--- `os.date("*t")`, with the fields typed as the numbers they are.
+---@param time integer?
+---@return knapp.DateParts
+function M.parts(time)
+  return os.date("*t", time or os.time()) --[[@as knapp.DateParts]]
+end
+
 --- Shift a timestamp by `n` units ("d", "w", "M", "y").
 function M.shift(time, n, unit)
-  local t = os.date("*t", time or os.time()) --[[@as osdate]]
+  local t = M.parts(time)
   if unit == "d" then
     t.day = t.day + n
   elseif unit == "w" then
@@ -92,7 +114,9 @@ function M.shift(time, n, unit)
   elseif unit == "y" then
     t.year = t.year + n
   end
-  return os.time(t)
+  -- os.time wants the stdlib's own osdateparam; knapp.DateParts is the same
+  -- shape with the fields narrowed to integers
+  return os.time(t --[[@as osdateparam]])
 end
 
 --- Parse "+6d" / "-2w" style offsets. Returns nil when there is none.
@@ -105,7 +129,7 @@ end
 --- Monday of the week containing `time`.
 function M.week_start(time, first_day)
   time = time or os.time()
-  local t = os.date("*t", time) --[[@as osdate]]
+  local t = M.parts(time)
   local wday = t.wday -- 1 = Sunday
   local offset
   if first_day == "sunday" then
@@ -115,7 +139,9 @@ function M.week_start(time, first_day)
   end
   t.day = t.day - offset
   t.hour, t.min, t.sec = 12, 0, 0
-  return os.time(t)
+  -- os.time wants the stdlib's own osdateparam; knapp.DateParts is the same
+  -- shape with the fields narrowed to integers
+  return os.time(t --[[@as osdateparam]])
 end
 
 --- Midday timestamp for a Y/M/D, safe against DST edges.

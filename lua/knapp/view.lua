@@ -18,7 +18,7 @@ function M.is_note_win(win)
   local buf = vim.api.nvim_win_get_buf(win)
   if vim.bo[buf].buftype ~= "" then return false end
   local name = vim.api.nvim_buf_get_name(buf)
-  return config.in_vault(name) and name:sub(-3) == ".md"
+  return config.in_vault(name) and require("knapp.util").is_md(name)
 end
 
 function M.is_pad(win)

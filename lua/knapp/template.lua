@@ -38,7 +38,7 @@ end
 --- Resolve a template name (as written in Obsidian's settings) to a path.
 function M.path(name)
   if not name or name == "" then return nil end
-  local rel = name:sub(-3) == ".md" and name or (name .. ".md")
+  local rel = util.is_md(name) and name or (name .. ".md")
   local candidates = { rel, vim.fs.joinpath(ocfg.get().templates.folder, rel) }
   for _, c in ipairs(candidates) do
     local abs = config.abs(c)
@@ -63,7 +63,7 @@ function M.list()
   while true do
     local name, kind = uv.fs_scandir_next(handle)
     if not name then break end
-    if kind == "file" and name:sub(-3) == ".md" then out[#out + 1] = name:sub(1, -4) end
+    if kind == "file" and util.is_md(name) then out[#out + 1] = name:sub(1, -4) end
   end
   table.sort(out)
   return out

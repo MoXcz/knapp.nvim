@@ -30,6 +30,50 @@ describe("config.setup", function()
   end)
 end)
 
+describe("config.setup validation", function()
+  after_each(helpers.cleanup)
+
+  it("falls back to the default for an invalid value", function()
+    helpers.notifications()
+    config.setup({ vault = helpers.vault({}), wrap = { width = "120" } })
+    assert.equals(120, config.opts.wrap.width)
+  end)
+
+  it("says which options it ignored", function()
+    helpers.notifications()
+    config.setup({
+      vault = helpers.vault({}),
+      wrap = { width = "120" },
+      backlinks = { position = "rihgt" },
+    })
+    local notes = helpers.notifications()
+    assert.equals(1, #notes)
+    assert.equals(vim.log.levels.ERROR, notes[1].level)
+    assert.matches("wrap%.width", notes[1].msg)
+    assert.matches("backlinks%.position", notes[1].msg)
+  end)
+
+  it("keeps the valid options around an invalid one", function()
+    config.setup({
+      vault = helpers.vault({}),
+      wrap = { width = "nope", pad = false },
+    })
+    assert.equals(120, config.opts.wrap.width)
+    assert.is_false(config.opts.wrap.pad)
+  end)
+
+  it("says nothing when the config is valid", function()
+    helpers.notifications()
+    config.setup({ vault = helpers.vault({}), wrap = { width = 80 } })
+    assert.equals(0, #helpers.notifications())
+  end)
+
+  it("reports unknown keys without reporting vault", function()
+    local unknown = config.unknown_keys({ vault = "/x", nonsense = true, wrap = { typo = 1 } })
+    assert.same({ "nonsense", "wrap.typo" }, helpers.sorted(unknown))
+  end)
+end)
+
 describe("config paths", function()
   local vault
 

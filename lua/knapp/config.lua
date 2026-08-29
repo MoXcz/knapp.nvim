@@ -73,11 +73,134 @@ M.defaults = {
 
 M.opts = vim.deepcopy(M.defaults)
 
+local function is(kind)
+  return function(v) return type(v) == kind end
+end
+local function positive(v) return type(v) == "number" and v > 0 end
+
+--- One schema, used by setup() to fall back to defaults and by health to list
+--- everything wrong at once. Keeping two copies in step by hand is exactly the
+--- kind of drift this project has already been bitten by.
+--- Named separately: inside a tuple alias, `fun(v: any): boolean, string`
+--- parses as a function returning two values rather than as two elements.
+---@alias knapp.ConfigCheck fun(v: any): boolean
+
+--- A field path, a predicate, and how to describe what was expected.
+---@alias knapp.ConfigRule [string, knapp.ConfigCheck, string]
+
+---@type knapp.ConfigRule[]
+M.schema = {
+  { "ignore", function(v) return vim.islist(v) end, "a list of directory names" },
+  { "cache", is("string"), "a string" },
+  { "fix_sessionoptions", is("boolean"), "a boolean" },
+
+  { "keys.enabled", is("boolean"), "a boolean" },
+  { "keys.global", is("boolean"), "a boolean" },
+  { "keys.prefix", is("string"), "a string" },
+  { "keys.insert", is("boolean"), "a boolean" },
+  { "keys.swap_ci", is("boolean"), "a boolean" },
+
+  { "wrap.enabled", is("boolean"), "a boolean" },
+  { "wrap.width", positive, "a positive number" },
+  { "wrap.pad", is("boolean"), "a boolean" },
+  { "wrap.min_pad", function(v) return type(v) == "number" and v >= 0 end, "a non-negative number" },
+  { "wrap.display_line_motions", is("boolean"), "a boolean" },
+  { "wrap.nav_commands", is("table"), "a table of direction -> command name" },
+
+  { "backlinks.enabled", is("boolean"), "a boolean" },
+  { "backlinks.auto", is("boolean"), "a boolean" },
+  {
+    "backlinks.position",
+    function(v) return vim.tbl_contains({ "top", "bottom", "left", "right" }, v) end,
+    '"top", "bottom", "left" or "right"',
+  },
+  { "backlinks.width", positive, "a positive number" },
+  { "backlinks.height", positive, "a positive number" },
+
+  { "journal.zettel_separator", is("string"), "a string" },
+}
+
+--- Read a dotted path out of a table.
+local function get(tbl, path)
+  local value = tbl
+  for key in path:gmatch("[^.]+") do
+    if type(value) ~= "table" then return nil end
+    value = value[key]
+  end
+  return value
+end
+
+--- Write a dotted path into a table.
+local function set(tbl, path, new)
+  local keys = vim.split(path, ".", { plain = true })
+  local node = tbl
+  for i = 1, #keys - 1 do
+    node = node[keys[i]]
+    if type(node) ~= "table" then return end
+  end
+  node[keys[#keys]] = new
+end
+
+--- Check `opts` against |knapp.config.schema|.
+---@param opts table merged options
+---@return string[] problems one line per invalid field, empty when all is well
+function M.validate(opts)
+  local problems = {}
+  for _, rule in ipairs(M.schema) do
+    local path, ok_fn, expected = rule[1], rule[2], rule[3]
+    local value = get(opts, path)
+    if not ok_fn(value) then
+      problems[#problems + 1] = ("%s = %s (expected %s)"):format(path, vim.inspect(value), expected)
+    end
+  end
+  return problems
+end
+
+--- Unknown keys in `opts`, as dotted paths. `tbl_deep_extend` keeps them
+--- silently, so a typo would otherwise just never take effect.
+---@return string[]
+function M.unknown_keys(opts)
+  local out = {}
+  local function walk(user, default, prefix)
+    if type(user) ~= "table" or type(default) ~= "table" then return end
+    for key, value in pairs(user) do
+      local path = prefix == "" and tostring(key) or (prefix .. "." .. tostring(key))
+      -- `vault` has no default, so it cannot be found by walking the defaults
+      if default[key] == nil and not (prefix == "" and key == "vault") then
+        out[#out + 1] = path
+      else
+        walk(value, default[key], path)
+      end
+    end
+  end
+  walk(opts, M.defaults, "")
+  return out
+end
+
 function M.setup(opts)
-  M.opts = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
+  -- tbl_deep_extend does not mutate its first argument, so the defaults do not
+  -- need copying before being merged over.
+  M.opts = vim.tbl_deep_extend("force", M.defaults, opts or {})
   if not M.opts.vault or M.opts.vault == "" then
     error("knapp.nvim: `vault` is required, e.g. require('knapp').setup({ vault = '~/notes' })")
   end
+
+  -- A bad value would otherwise surface much later and far from its cause --
+  -- `wrap.width = "120"` fails inside nvim_win_set_width. Report every problem
+  -- at once and fall back to the default for each, so one typo in a config
+  -- does not take the whole plugin down. :checkhealth repeats the detail.
+  local problems = M.validate(M.opts)
+  if #problems > 0 then
+    for _, path in ipairs(problems) do
+      set(M.opts, path:match("^[^ ]+"), get(M.defaults, path:match("^[^ ]+")))
+    end
+    vim.notify(
+      "knapp.nvim: ignoring invalid options, using defaults instead:\n  " .. table.concat(problems, "\n  "),
+      vim.log.levels.ERROR,
+      { title = "knapp" }
+    )
+  end
+
   M.opts.vault = vim.fs.normalize(vim.fn.expand(M.opts.vault))
   if vim.fn.isdirectory(M.opts.vault) == 0 then
     vim.notify(("knapp.nvim: vault %s does not exist"):format(M.opts.vault), vim.log.levels.WARN)

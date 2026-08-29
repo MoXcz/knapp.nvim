@@ -14,6 +14,12 @@ describe("index.build", function()
     assert.same({ "a.md", "folder/b.md", "folder/deep/c.md" }, helpers.sorted(vim.tbl_keys(index.state.files)))
   end)
 
+  it("indexes a note with an upper-case extension", function()
+    helpers.setup({ ["a.md"] = "", ["Shouty.MD"] = "" })
+    assert.same({ "Shouty.MD", "a.md" }, helpers.sorted(vim.tbl_keys(index.state.files)))
+    assert.equals("Shouty.MD", index.resolve("Shouty"))
+  end)
+
   it("skips ignored directories", function()
     helpers.setup({
       ["a.md"] = "",

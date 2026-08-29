@@ -39,7 +39,7 @@ local function is_note_win(win)
   local buf = vim.api.nvim_win_get_buf(win)
   if vim.bo[buf].buftype ~= "" then return false end
   local name = vim.api.nvim_buf_get_name(buf)
-  return config.in_vault(name) and name:sub(-3) == ".md"
+  return config.in_vault(name) and require("knapp.util").is_md(name)
 end
 
 --- One row per linking note, keeping the first occurrence to jump to.
@@ -169,7 +169,6 @@ function M.open(focus)
   local prev = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "knapp-backlinks"
   local horizontal = opts.position == "top" or opts.position == "bottom"
   local first = opts.position == "top" or opts.position == "left"
   vim.cmd((first and "topleft " or "botright ") .. (horizontal and "split" or "vsplit"))
@@ -191,6 +190,10 @@ function M.open(focus)
   state = { win = win, buf = buf, rows = {} }
   setup_buf(buf)
   render(rel, actions.backlink_items(rel))
+  -- Set the filetype last (`:h lua-plugin-filetype`): the FileType event fires
+  -- here, so a user's ftplugin/knapp-backlinks.lua can override anything set
+  -- above rather than being overwritten by it.
+  vim.bo[buf].filetype = "knapp-backlinks"
   if not focus then vim.api.nvim_set_current_win(prev) end
 end
 

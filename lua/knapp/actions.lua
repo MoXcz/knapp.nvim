@@ -38,7 +38,7 @@ function M.current()
   local path = vim.api.nvim_buf_get_name(0)
   if path == "" or not config.in_vault(path) then return nil end
   local rel = config.rel(path)
-  if rel:sub(-3) ~= ".md" then return nil end
+  if not util.is_md(rel) then return nil end
   return rel
 end
 
@@ -280,7 +280,7 @@ end
 function M.create_note(name, open)
   local folder = ocfg.get().new_note_folder
   local rel = name:find("/", 1, true) and name or vim.fs.joinpath(folder, name)
-  if rel:sub(-3) ~= ".md" then rel = rel .. ".md" end
+  if not util.is_md(rel) then rel = rel .. ".md" end
   local path = config.abs(rel)
   vim.fn.mkdir(vim.fs.dirname(path), "p")
   if not uv.fs_stat(path) then

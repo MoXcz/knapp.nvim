@@ -44,13 +44,19 @@ require("knapp").setup({
 
 local index = require("knapp.index")
 
+--- Best of `runs` timings, in milliseconds.
+---
+--- Best-of rather than mean: this box is noisy enough that the mean of a
+--- 3-run sample swung by 3x between invocations, which made before/after
+--- comparisons meaningless.
 local function ms(fn, runs)
-  runs = runs or 1
-  local t = vim.uv.hrtime()
-  for _ = 1, runs do
+  local best = math.huge
+  for _ = 1, runs or 1 do
+    local t = vim.uv.hrtime()
     fn()
+    best = math.min(best, (vim.uv.hrtime() - t) / 1e6)
   end
-  return (vim.uv.hrtime() - t) / 1e6 / runs
+  return best
 end
 
 --- Milliseconds, or microseconds when that would round to zero.
@@ -86,10 +92,10 @@ end
 print(("vault: %d notes, %d hub notes (~%d backlinks each)\n"):format(NOTES + HUBS, HUBS, NOTES / HUBS))
 
 index.state.built = false
-print(("cold build                %s"):format(fmt(ms(function() index.build({ force = true }) end))))
+print(("cold build                %s"):format(fmt(ms(function() index.build({ force = true }) end, 3))))
 
-local p2_old = ms(old_reindex, 3)
-local p2_new = ms(index.reindex, 3)
+local p2_old = ms(old_reindex, 5)
+local p2_new = ms(index.reindex, 5)
 print(("\nreindex, old dedupe       %s"):format(fmt(p2_old)))
 print(("reindex, set dedupe (P2)  %s   %.1fx"):format(fmt(p2_new), p2_old / p2_new))
 
@@ -100,11 +106,25 @@ local old_write = function()
   index.state.files[target].mtime = st and st.mtime.sec or 0
   index.reindex()
 end
-local w_old = ms(old_write, 3)
+local w_old = ms(old_write, 5)
 local w_new = ms(function() index.update(target) end, 200)
 print(("\n:w  old, full reindex     %s"):format(fmt(w_old)))
 print((":w  new, edge diff (P1)   %s   %.0fx"):format(fmt(w_new), w_old / w_new))
 
-print(("\ncache encode+write        %s  (was on every :w, now debounced 2s)"):format(fmt(ms(index.save_cache, 3))))
+print(("\ncache encode+write        %s  (was on every :w, now debounced 2s)"):format(fmt(ms(index.save_cache, 5))))
+
+-- The backlinks pane refreshes on every note switch. Its cost is dominated by
+-- reading and scanning every note that links to the one being opened.
+local actions = require("knapp.actions")
+local hub = "hub 1.md"
+print(("\nbacklinks pane for a note with %d backlinks:"):format(#index.backlinks(hub)))
+local cold = ms(function()
+  actions.clear_scan_cache()
+  actions.backlink_items(hub)
+end, 3)
+local warm = ms(function() actions.backlink_items(hub) end, 50)
+print(("  cold, read+scan         %s"):format(fmt(cold)))
+print(("  warm, cached scan (P4)  %s   %.1fx"):format(fmt(warm), cold / warm))
+print("  (the warm path is ~60% fs_stat, kept deliberately - see P4 in docs/optimization.md)")
 
 vim.fn.delete(root, "rf")

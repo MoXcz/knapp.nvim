@@ -76,13 +76,15 @@ describe("documented defaults", function()
     assert.is_not_nil(block, "could not find the defaults block in README.md")
 
     local captured
-    local env = setmetatable({
+    -- the block needs `vim` for the cache default and nothing else
+    local env = {
+      vim = vim,
       require = function()
         return {
           setup = function(opts) captured = opts end,
         }
       end,
-    }, { __index = _G })
+    }
 
     local chunk = assert(loadstring(block, "README.md defaults"))
     setfenv(chunk, env)

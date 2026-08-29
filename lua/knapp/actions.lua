@@ -324,35 +324,86 @@ function M.follow()
   if choice == 1 then M.create_note(m.target) end
 end
 
+-- Scanned links per source file, keyed by absolute path. The backlinks pane
+-- refreshes on every note switch and would otherwise re-read and re-scan every
+-- linking note each time, even though those notes rarely change in between.
+--
+-- Keyed by absolute path rather than vault-relative path so two vaults cannot
+-- collide, and validated against size as well as mtime so an edit within the
+-- same second is not missed.
+local scan_cache = {}
+
+--- Every link in `path`, as { target, lnum, col, text }, cached by mtime.
+---
+--- The stamp deliberately comes from a fresh `fs_stat` rather than from the
+--- mtime the index already holds. Reusing the index's would save a syscall per
+--- source, but this plugin exists to share a vault with Obsidian: a note edited
+--- in the Obsidian app does not go through `index.update()`, and the pane would
+--- then jump to stale line numbers.
+local function scan_cached(path)
+  local st = uv.fs_stat(path)
+  if not st then
+    scan_cache[path] = nil
+    return nil
+  end
+  local stamp = ("%d.%d.%d"):format(st.mtime.sec, st.mtime.nsec or 0, st.size)
+  local hit = scan_cache[path]
+  if hit and hit.stamp == stamp then return hit.links end
+
+  local text = util.read_file(path)
+  if not text then
+    scan_cache[path] = nil
+    return nil
+  end
+  local lines = vim.split(text, "\n", { plain = true })
+  local links = {}
+  -- one pass over the file, so links inside fenced code blocks are skipped
+  -- here exactly as they are when the index is built
+  for _, m in ipairs(link.scan_lines(text)) do
+    links[#links + 1] = {
+      target = m.target,
+      lnum = m.lnum,
+      col = m.col,
+      text = vim.trim(lines[m.lnum] or ""),
+    }
+  end
+  scan_cache[path] = { stamp = stamp, links = links }
+  return links
+end
+
+--- Drop the scan cache. Only needed when the vault itself changes.
+function M.clear_scan_cache() scan_cache = {} end
+
 --- Every link pointing at `rel`, as { rel, name, filename, lnum, col, text }.
 function M.backlink_items(rel)
   index.ensure()
   local items = {}
   for _, src in ipairs(index.backlinks(rel)) do
     local path = config.abs(src)
-    local text = util.read_file(path)
-    if text then
-      -- one pass over the file, so links inside fenced code blocks are skipped
-      -- here exactly as they are when the index is built
-      local lines
-      for _, m in ipairs(link.scan_lines(text)) do
-        if index.resolve(m.target, src) == rel then
-          lines = lines or vim.split(text, "\n", { plain = true })
-          items[#items + 1] = {
-            rel = src,
-            name = vim.fs.basename(src):sub(1, -4),
-            filename = path,
-            lnum = m.lnum,
-            col = m.col,
-            text = vim.trim(lines[m.lnum] or ""),
-          }
+    local name, sort_key
+    for _, l in ipairs(scan_cached(path) or {}) do
+      if index.resolve(l.target, src) == rel then
+        -- lowercase once per source, not once per comparison: the comparator
+        -- below runs O(n log n) times
+        if not name then
+          name = vim.fs.basename(src):sub(1, -4)
+          sort_key = name:lower()
         end
+        items[#items + 1] = {
+          rel = src,
+          name = name,
+          sort_key = sort_key,
+          filename = path,
+          lnum = l.lnum,
+          col = l.col,
+          text = l.text,
+        }
       end
     end
   end
   table.sort(items, function(a, b)
-    if a.name == b.name then return a.lnum < b.lnum end
-    return a.name:lower() < b.name:lower()
+    if a.sort_key == b.sort_key then return a.lnum < b.lnum end
+    return a.sort_key < b.sort_key
   end)
   return items
 end

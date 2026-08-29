@@ -80,6 +80,7 @@ end
 --- Reset the module-level state a spec may have dirtied.
 function M.cleanup()
   M.captured = {}
+  require("knapp.actions").clear_scan_cache()
   local index = require("knapp.index")
   index.state.built = false
   index.state.files, index.state.by_name, index.state.by_path, index.state.backlinks = {}, {}, {}, {}

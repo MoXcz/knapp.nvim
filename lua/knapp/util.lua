@@ -43,4 +43,25 @@ function M.decode_json(text)
   return value
 end
 
+--- Wrap `fn` so that a burst of calls collapses into one, `ms` after the last.
+---
+--- `WinResized` fires continuously while a split boundary is dragged, and
+--- `BufEnter` and `BufWinEnter` both fire for a single note switch. Without
+--- this, each event does the full work.
+---
+--- The wrapped function is called on the main loop (`vim.schedule_wrap`), so it
+--- may use the whole API. Arguments from the *last* call win.
+---@param ms integer
+---@param fn function
+---@return function debounced
+function M.debounce(ms, fn)
+  local timer, args, argc
+  return function(...)
+    args, argc = { ... }, select("#", ...)
+    if not timer then timer = vim.uv.new_timer() end
+    timer:stop()
+    timer:start(ms, 0, vim.schedule_wrap(function() fn(unpack(args, 1, argc)) end))
+  end
+end
+
 return M

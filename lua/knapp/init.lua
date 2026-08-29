@@ -1,6 +1,7 @@
 -- knapp.nvim - use an Obsidian vault from Neovim.
 -- Keymaps and commands are buffer-local: they only exist inside the vault.
 local config = require("knapp.config")
+local util = require("knapp.util")
 
 local M = {}
 
@@ -147,11 +148,12 @@ function M.setup(opts)
     end,
   })
 
+  -- Dragging a split boundary emits WinResized continuously, and each event
+  -- would otherwise walk every window in the tab and resize two of them.
+  local refresh_view = util.debounce(20, function() require("knapp.view").refresh() end)
   vim.api.nvim_create_autocmd({ "WinResized", "WinNew", "WinClosed", "TabEnter" }, {
     group = group,
-    callback = function()
-      vim.schedule(function() require("knapp.view").refresh() end)
-    end,
+    callback = refresh_view,
   })
 
   vim.api.nvim_create_autocmd("WinEnter", {
@@ -159,20 +161,24 @@ function M.setup(opts)
     callback = function() require("knapp.view").leave_pad() end,
   })
 
+  -- A single note switch fires both BufEnter and BufWinEnter, and each one
+  -- would rebuild the pane. Collapse the pair, and read the current buffer
+  -- when the work actually runs rather than when the event fired.
+  local refresh_pane = util.debounce(25, function()
+    local pane = require("knapp.pane")
+    if pane.is_open() then
+      pane.update()
+    elseif config.opts.backlinks.auto then
+      pane.open(false)
+    end
+  end)
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     group = group,
     pattern = "*.md",
     callback = function(ev)
       if not config.in_vault(vim.api.nvim_buf_get_name(ev.buf)) then return end
       if vim.api.nvim_win_get_config(0).relative ~= "" then return end
-      local pane = require("knapp.pane")
-      vim.schedule(function()
-        if pane.is_open() then
-          pane.update()
-        elseif config.opts.backlinks.auto then
-          pane.open(false)
-        end
-      end)
+      refresh_pane()
     end,
   })
 

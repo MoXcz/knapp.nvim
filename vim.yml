@@ -1,0 +1,36 @@
+# selene standard library: Lua 5.1 (LuaJIT) plus the globals that exist inside
+# Neovim and inside busted specs. Selected by `std = "vim"` in selene.toml.
+base: lua51
+
+globals:
+  vim:
+    any: true
+  jit:
+    any: true
+
+  # busted's DSL, available in tests/ only. Selene has no per-directory global
+  # scoping, so they are declared for the whole project.
+  describe:
+    any: true
+  it:
+    any: true
+  before_each:
+    any: true
+  after_each:
+    any: true
+  setup:
+    any: true
+  teardown:
+    any: true
+  pending:
+    any: true
+  finally:
+    any: true
+  assert:
+    any: true
+  spy:
+    any: true
+  stub:
+    any: true
+  mock:
+    any: true

@@ -1,0 +1,7 @@
+std = "vim"
+
+[lints]
+# `if cond then return end`
+multiple_statements = "allow"
+# `vim.opt.x = y`
+mixed_table = "allow"

@@ -66,6 +66,9 @@ With lazy.nvim:
 `snacks.nvim` is optional; when present its picker backs the palette, note
 finder and vault grep. Everything falls back to `vim.ui.select`.
 
+An option with the wrong type or an unrecognised value is reported and replaced
+with its default, so a typo does not stop the plugin loading.
+
 Run `:checkhealth knapp` after setup. Nearly everything knapp does is derived
 from `<vault>/.obsidian/*.json`, so when a note lands in the wrong folder the
 report names the file that is missing or malformed.

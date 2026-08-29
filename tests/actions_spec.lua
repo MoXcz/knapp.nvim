@@ -65,6 +65,23 @@ describe("actions.rewrite_backlinks", function()
     assert.equals("[[new]]\n```\n[[old]]\n```\n", helpers.read(vault, "src.md"))
   end)
 
+  it("reports why a file could not be read, not just that it failed", function()
+    local vault = helpers.setup({ ["src.md"] = "[[old]]", ["old.md"] = "" })
+    local path = vim.fs.joinpath(vault, "src.md")
+    vim.uv.fs_chmod(path, 128) -- write-only: readable by nobody
+    -- root ignores the mode bits, so there would be nothing to observe
+    if require("knapp.util").read_file(path) then
+      vim.uv.fs_chmod(path, 420)
+      return pending("cannot make a file unreadable as this user")
+    end
+    local changed, skipped = actions.rewrite_backlinks("old.md", "new.md")
+    vim.uv.fs_chmod(path, 420)
+    assert.same({}, changed)
+    assert.equals(1, #skipped)
+    assert.equals("src.md", skipped[1].rel)
+    assert.matches("[Pp]ermission denied", skipped[1].reason)
+  end)
+
   it("reports which files it changed", function()
     helpers.setup({ ["a.md"] = "[[old]]", ["b.md"] = "[[old]]", ["c.md"] = "no link", ["old.md"] = "" })
     local changed, skipped = actions.rewrite_backlinks("old.md", "new.md")
@@ -78,7 +95,7 @@ describe("actions.rewrite_backlinks", function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[old]] edited but not written" })
     local changed, skipped = actions.rewrite_backlinks("old.md", "new.md")
     assert.same({}, changed)
-    assert.same({ "src.md" }, skipped)
+    assert.same({ { rel = "src.md", reason = "unsaved changes" } }, skipped)
     assert.equals("[[old]]", helpers.read(vault, "src.md"))
     -- reported, never silently clobbered
     assert.equals(0, #helpers.notifications())
@@ -137,6 +154,37 @@ describe("actions.move_note", function()
     local buf = vim.api.nvim_get_current_buf()
     actions.move_note("old.md", "new.md")
     assert.equals(vim.fs.joinpath(vault, "new.md"), vim.api.nvim_buf_get_name(buf))
+  end)
+end)
+
+describe("relink reporting", function()
+  after_each(helpers.cleanup)
+
+  it("puts files it could not relink into the quickfix list", function()
+    local vault = helpers.setup({ ["src.md"] = "[[old]]", ["ok.md"] = "[[old]]", ["old.md"] = "" })
+    vim.cmd.edit(vim.fs.joinpath(vault, "src.md"))
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[old]] edited but not written" })
+    vim.fn.setqflist({}, "r")
+    helpers.notifications()
+
+    actions.move_note("old.md", "new.md")
+
+    local qf = vim.fn.getqflist({ title = 1, items = 1 })
+    assert.equals("knapp: not relinked", qf.title)
+    assert.equals(1, #qf.items)
+    assert.matches("not relinked: unsaved changes", qf.items[1].text)
+    assert.equals(vim.fs.joinpath(vault, "src.md"), vim.api.nvim_buf_get_name(qf.items[1].bufnr))
+
+    local notes = helpers.notifications()
+    assert.matches("see :copen", notes[#notes].msg)
+    assert.equals(vim.log.levels.WARN, notes[#notes].level)
+  end)
+
+  it("does not touch the quickfix list when everything relinked", function()
+    helpers.setup({ ["src.md"] = "[[old]]", ["old.md"] = "" })
+    vim.fn.setqflist({}, " ", { title = "untouched", items = {} })
+    actions.move_note("old.md", "new.md")
+    assert.equals("untouched", vim.fn.getqflist({ title = 1 }).title)
   end)
 end)
 

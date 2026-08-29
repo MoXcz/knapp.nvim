@@ -13,7 +13,8 @@ roughly what this does to a vault.
 
 Requires Neovim 0.11+ and a vault created by Obsidian: every folder, filename
 format and template comes from `<vault>/.obsidian/*.json`, so Obsidian stays the
-single source of truth and nothing is configured twice.
+single source of truth and nothing is configured twice. (The `vim.pack` install
+snippet below needs 0.12+; nothing else does.)
 
 ## Install
 
@@ -128,9 +129,9 @@ require("knapp").setup({
   },
   backlinks = {
     auto = true,
-    position = "bottom", -- "bottom" | "top" | "left" | "right"
-    width = 40,          -- "left"/"right"
-    height = 10,         -- "top"/"bottom"
+    position = "right", -- "right" | "left" | "top" | "bottom"
+    width = 40,         -- "left"/"right"
+    height = 10,        -- "top"/"bottom"
   },
   -- 'sessionoptions' contains "blank", which stores the plugin's scratch
   -- windows in sessions and brings them back empty after :restart

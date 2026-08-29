@@ -36,8 +36,11 @@ function M.get()
     },
     weekly = {
       folder = weekly.weeklyNoteFolder or "",
-      -- Obsidian's calendar plugin defaults to gggg-[W]ww when left blank
-      format = (weekly.weeklyNoteFormat ~= "" and weekly.weeklyNoteFormat) or "YYYY-[W]WW",
+      -- Obsidian's Calendar plugin defaults to gggg-[W]ww when left blank.
+      -- `gggg` is the ISO week-numbering year, which is not the calendar year
+      -- in the days around New Year: Monday 2024-12-30 is 2025-W01, and
+      -- YYYY-[W]WW would name that note 2024-W01 instead.
+      format = (weekly.weeklyNoteFormat ~= "" and weekly.weeklyNoteFormat) or "gggg-[W]ww",
       template = weekly.weeklyNoteTemplate,
       week_start = weekly.weekStart or "monday",
     },

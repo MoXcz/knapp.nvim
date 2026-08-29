@@ -2,6 +2,7 @@
 -- Built once per session from a cached, mtime-checked scan.
 local config = require("knapp.config")
 local link = require("knapp.link")
+local util = require("knapp.util")
 
 local uv = vim.uv
 local M = {}
@@ -49,14 +50,6 @@ local function walk()
   return out
 end
 
-local function read_file(path)
-  local fd = io.open(path, "r")
-  if not fd then return nil end
-  local text = fd:read("*a")
-  fd:close()
-  return text
-end
-
 --- Aliases declared in the YAML frontmatter, if any.
 local function parse_aliases(text)
   local fm = text:match("^%-%-%-\n(.-)\n%-%-%-")
@@ -87,7 +80,7 @@ end
 
 --- Parse one file into an index entry.
 local function parse(rel, mtime)
-  local text = read_file(config.abs(rel))
+  local text = util.read_file(config.abs(rel))
   if not text then return nil end
   local targets = {}
   for _, m in ipairs(link.scan(text)) do
@@ -176,7 +169,7 @@ function M.resolve_file(target, from_rel)
 end
 
 local function load_cache()
-  local text = read_file(cache_file())
+  local text = util.read_file(cache_file())
   if not text then return nil end
   local ok, data = pcall(vim.json.decode, text)
   if not ok or type(data) ~= "table" or data.version ~= CACHE_VERSION then return nil end
@@ -200,13 +193,15 @@ function M.save_cache()
   local tmp = path .. ".tmp"
   local fd = io.open(tmp, "w")
   if not fd then return false end
-  local ok = pcall(function()
-    fd:write(vim.json.encode({
-      version = CACHE_VERSION,
-      vault = config.opts.vault,
-      files = M.state.files,
-    }))
-  end)
+  local ok = pcall(
+    function()
+      fd:write(vim.json.encode({
+        version = CACHE_VERSION,
+        vault = config.opts.vault,
+        files = M.state.files,
+      }))
+    end
+  )
   fd:close()
   if not ok or not uv.fs_rename(tmp, path) then
     os.remove(tmp)

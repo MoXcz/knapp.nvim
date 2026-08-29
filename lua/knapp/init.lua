@@ -96,7 +96,19 @@ local function global_keys()
   set("C", function() require("knapp.calendar").open() end, "calendar")
 end
 
+--- Oldest Neovim this plugin is tested against. `vim.pack` in the install
+--- snippet needs 0.12, but nothing in the plugin itself does.
+local MIN_NVIM = "nvim-0.11"
+
 function M.setup(opts)
+  if vim.fn.has(MIN_NVIM) == 0 then
+    vim.notify(
+      ("knapp.nvim requires Neovim %s or newer"):format(MIN_NVIM:sub(6)),
+      vim.log.levels.ERROR,
+      { title = "knapp" }
+    )
+    return
+  end
   config.setup(opts)
   local index = require("knapp.index")
   local group = vim.api.nvim_create_augroup("knapp", { clear = true })

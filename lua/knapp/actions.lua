@@ -4,37 +4,33 @@ local config = require("knapp.config")
 local index = require("knapp.index")
 local link = require("knapp.link")
 local ocfg = require("knapp.obsidian_cfg")
+local util = require("knapp.util")
 
 local uv = vim.uv
 local M = {}
 
 local function notify(msg, level) vim.notify(msg, level or vim.log.levels.INFO, { title = "knapp" }) end
 
-local function read_file(path)
-  local fd = io.open(path, "r")
-  if not fd then return nil end
-  local text = fd:read("*a")
-  fd:close()
-  return text
-end
-
 --- Write `text` to `path`, going through a loaded buffer when there is one so
---- open windows stay in sync. Returns false if the buffer has unsaved changes.
+--- open windows stay in sync.
+---
+--- Returns `false, reason`. "the buffer has unsaved changes" and "the file is
+--- read-only" both used to surface as the same bare `false`, and callers then
+--- reported whichever one they happened to guess.
+---@return boolean ok
+---@return string? reason
 local function write_file(path, text)
   local bufnr = vim.fn.bufnr(path)
   if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
-    if vim.bo[bufnr].modified then return false end
+    if vim.bo[bufnr].modified then return false, "unsaved changes" end
     local lines = vim.split(text, "\n", { plain = true })
     if lines[#lines] == "" then table.remove(lines) end
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-    vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent noautocmd write") end)
+    local ok, err = pcall(vim.api.nvim_buf_call, bufnr, function() vim.cmd("silent noautocmd write") end)
+    if not ok then return false, tostring(err) end
     return true
   end
-  local fd = io.open(path, "w")
-  if not fd then return false end
-  fd:write(text)
-  fd:close()
-  return true
+  return util.write_file(path, text)
 end
 
 --- Vault-relative path of the current buffer, or nil.
@@ -62,8 +58,37 @@ local function name_count(name, moving, to_rel)
   return n
 end
 
+--- Report the outcome of a relink.
+---
+--- Skipped files go to the quickfix list rather than into the message: a
+--- rename can touch dozens of notes, and a notification listing ten paths has
+--- scrolled away before it can be acted on.
+---@param msg string
+---@param skipped { rel: string, reason: string }[]
+local function report_relink(msg, skipped)
+  if #skipped == 0 then
+    notify(msg)
+    return
+  end
+  local items = {}
+  for _, s in ipairs(skipped) do
+    items[#items + 1] = {
+      filename = config.abs(s.rel),
+      lnum = 1,
+      col = 1,
+      text = "not relinked: " .. s.reason,
+    }
+  end
+  vim.fn.setqflist({}, " ", { title = "knapp: not relinked", items = items })
+  notify(
+    ("%s\n%d file%s left pointing at the old name - see :copen"):format(msg, #skipped, #skipped == 1 and "" or "s"),
+    vim.log.levels.WARN
+  )
+end
+
 --- Point every link that resolves to `old_rel` at `new_rel`.
---- Returns the list of files changed and the list of files skipped.
+---@return string[] changed vault-relative paths that were rewritten
+---@return { rel: string, reason: string }[] skipped paths that could not be, and why
 function M.rewrite_backlinks(old_rel, new_rel)
   index.ensure()
   local sources = vim.deepcopy(index.backlinks(old_rel))
@@ -77,7 +102,7 @@ function M.rewrite_backlinks(old_rel, new_rel)
   local changed, skipped = {}, {}
   for _, src in ipairs(sources) do
     local path = config.abs(src)
-    local text = read_file(path)
+    local text, read_err = util.read_file(path)
     if text then
       local new_text, n = link.rewrite(text, function(m)
         if index.resolve(m.target, src) ~= old_rel then return nil end
@@ -89,12 +114,15 @@ function M.rewrite_backlinks(old_rel, new_rel)
         return new_rel:sub(1, -4)
       end)
       if n > 0 then
-        if write_file(path, new_text) then
+        local ok, reason = write_file(path, new_text)
+        if ok then
           changed[#changed + 1] = src
         else
-          skipped[#skipped + 1] = src
+          skipped[#skipped + 1] = { rel = src, reason = reason or "unknown error" }
         end
       end
+    else
+      skipped[#skipped + 1] = { rel = src, reason = read_err or "unknown error" }
     end
   end
   return changed, skipped
@@ -130,13 +158,7 @@ function M.move_note(rel, new_rel)
   index.schedule_save()
   vim.cmd("checktime")
   local n = #changed
-  local msg = ("%s -> %s (%d file%s relinked)"):format(rel, new_rel, n, n == 1 and "" or "s")
-  if #skipped > 0 then
-    msg = msg .. ("\nskipped %d file(s) with unsaved changes: %s"):format(#skipped, table.concat(skipped, ", "))
-    notify(msg, vim.log.levels.WARN)
-  else
-    notify(msg)
-  end
+  report_relink(("%s -> %s (%d file%s relinked)"):format(rel, new_rel, n, n == 1 and "" or "s"), skipped)
   return true
 end
 
@@ -184,15 +206,20 @@ function M.merge()
   end
   vim.ui.select(items, { prompt = ("Merge %q into"):format(vim.fs.basename(rel)) }, function(target_rel)
     if not target_rel then return end
-    local source_text = read_file(config.abs(rel))
-    local target_text = read_file(config.abs(target_rel))
-    if not source_text or not target_text then
-      notify("could not read one of the notes", vim.log.levels.ERROR)
+    local source_text, source_err = util.read_file(config.abs(rel))
+    if not source_text then
+      notify(("could not read %s: %s"):format(rel, source_err), vim.log.levels.ERROR)
+      return
+    end
+    local target_text, target_err = util.read_file(config.abs(target_rel))
+    if not target_text then
+      notify(("could not read %s: %s"):format(target_rel, target_err), vim.log.levels.ERROR)
       return
     end
     if not target_text:match("\n$") then target_text = target_text .. "\n" end
-    if not write_file(config.abs(target_rel), target_text .. "\n" .. source_text) then
-      notify("target has unsaved changes", vim.log.levels.ERROR)
+    local written, write_err = write_file(config.abs(target_rel), target_text .. "\n" .. source_text)
+    if not written then
+      notify(("could not write %s: %s"):format(target_rel, write_err), vim.log.levels.ERROR)
       return
     end
     local changed, skipped = M.rewrite_backlinks(rel, target_rel)
@@ -201,15 +228,9 @@ function M.merge()
     index.schedule_save()
     vim.cmd.edit(vim.fn.fnameescape(config.abs(target_rel)))
     vim.cmd("normal! G")
-    local msg = ("merged %s into %s (%d file%s relinked)"):format(
-      rel,
-      target_rel,
-      #changed,
-      #changed == 1 and "" or "s"
-    )
-    notify(
-      #skipped > 0 and (msg .. "\nskipped: " .. table.concat(skipped, ", ")) or msg,
-      #skipped > 0 and vim.log.levels.WARN or nil
+    report_relink(
+      ("merged %s into %s (%d file%s relinked)"):format(rel, target_rel, #changed, #changed == 1 and "" or "s"),
+      skipped
     )
   end)
 end
@@ -232,6 +253,7 @@ function M.trash(rel, quiet)
   end
   if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then vim.api.nvim_buf_delete(bufnr, { force = true }) end
   index.update(rel)
+  index.schedule_save()
   if not quiet then notify("trashed " .. rel) end
   return true
 end
@@ -308,7 +330,7 @@ function M.backlink_items(rel)
   local items = {}
   for _, src in ipairs(index.backlinks(rel)) do
     local path = config.abs(src)
-    local text = read_file(path)
+    local text = util.read_file(path)
     if text then
       -- one pass over the file, so links inside fenced code blocks are skipped
       -- here exactly as they are when the index is built

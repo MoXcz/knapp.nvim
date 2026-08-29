@@ -63,3 +63,46 @@ describe("config paths", function()
 
   it("maps the vault root to an empty relative path", function() assert.equals("", config.rel(vault)) end)
 end)
+
+describe("documented defaults", function()
+  -- The README's defaults block drifted from config.defaults once already
+  -- (`backlinks.position` was documented as "bottom" while the code used
+  -- "right"). Rather than trust proofreading, execute the block and compare.
+
+  --- The `setup{...}` table from the ```lua block under "Defaults:" in README.md.
+  local function readme_defaults()
+    local readme = assert(require("knapp.util").read_file("README.md"), "README.md not readable")
+    local block = readme:match("Defaults:%s*\n```lua\n(.-)```")
+    assert.is_not_nil(block, "could not find the defaults block in README.md")
+
+    local captured
+    local env = setmetatable({
+      require = function()
+        return {
+          setup = function(opts) captured = opts end,
+        }
+      end,
+    }, { __index = _G })
+
+    local chunk = assert(loadstring(block, "README.md defaults"))
+    setfenv(chunk, env)
+    chunk()
+    return captured
+  end
+
+  it("match config.defaults", function()
+    local documented = readme_defaults()
+    local actual = vim.deepcopy(require("knapp.config").defaults)
+    -- `vault` has no default; the README shows it as `nil` to mark it required.
+    documented.vault, actual.vault = nil, nil
+    -- tests/bootstrap.lua redirects the cache away from the real one, so it is
+    -- checked separately below rather than against the live default.
+    documented.cache, actual.cache = nil, nil
+    assert.same(actual, documented)
+  end)
+
+  it(
+    "document the same cache path config.lua computes",
+    function() assert.equals(vim.fs.joinpath(vim.fn.stdpath("cache"), "knapp"), readme_defaults().cache) end
+  )
+end)

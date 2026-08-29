@@ -3,17 +3,10 @@
 local config = require("knapp.config")
 local date = require("knapp.date")
 local ocfg = require("knapp.obsidian_cfg")
+local util = require("knapp.util")
 
 local uv = vim.uv
 local M = {}
-
-local function read(path)
-  local fd = io.open(path, "r")
-  if not fd then return nil end
-  local text = fd:read("*a")
-  fd:close()
-  return text
-end
 
 --- Expand template placeholders. `ctx` takes { title, time }.
 function M.expand(text, ctx)
@@ -58,7 +51,7 @@ end
 function M.render(name, ctx)
   local path = M.path(name)
   if not path then return "" end
-  return M.expand(read(path) or "", ctx)
+  return M.expand(util.read_file(path) or "", ctx)
 end
 
 --- Every template in the templates folder, as display names.

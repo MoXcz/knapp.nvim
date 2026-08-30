@@ -58,6 +58,13 @@ M.defaults = {
     -- Fleeting notes are named "<timestamp><separator><title>".
     zettel_separator = " - ",
   },
+  links = {
+    -- Highlight links by whether their target exists, so a link that points
+    -- nowhere is visible without following it.
+    enabled = true,
+    -- Repaint at most this often while typing, in milliseconds.
+    debounce = 150,
+  },
   -- The padding and backlinks windows hold scratch buffers. 'sessionoptions'
   -- ships with "blank", which stores them in sessions, so :mksession and
   -- :restart come back with stray empty windows. Drop "blank" to avoid it.
@@ -118,6 +125,9 @@ M.schema = {
   { "backlinks.height", positive, "a positive number" },
 
   { "journal.zettel_separator", is("string"), "a string" },
+
+  { "links.enabled", is("boolean"), "a boolean" },
+  { "links.debounce", positive, "a positive number" },
 }
 
 --- Read a dotted path out of a table.

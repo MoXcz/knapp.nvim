@@ -65,6 +65,17 @@ describe("default keymaps", function()
     assert.is_false(mapped("n", "gf", buf))
   end)
 
+  -- Named explicitly, because the generic "every action" test above only
+  -- covers actions that made it into the table; an action dropped from it
+  -- would go unnoticed while the README still documents its key.
+  it("cover every documented prefix key", function()
+    local vault = helpers.setup({ ["a.md"] = "" }, nil, { keys = { enabled = true } })
+    local buf = open_note(vault, "a.md")
+    for _, suffix in ipairs({ "b", "i", "c", "l", "h", "r", "m", "M", "B", "Q", "x", "n", "f", "g", "R", "W", "t" }) do
+      assert.is_true(mapped("n", "<Space>o" .. suffix, buf), "<leader>o" .. suffix .. " is not bound")
+    end
+  end)
+
   it("follow keys.prefix", function()
     local vault = helpers.setup({ ["a.md"] = "" }, nil, { keys = { enabled = true, prefix = "<leader>z" } })
     local buf = open_note(vault, "a.md")

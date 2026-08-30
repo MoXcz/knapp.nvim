@@ -71,6 +71,8 @@ function M.setup(opts)
     })
   end
 
+  require("knapp.links").setup(group)
+
   if config.opts.fix_sessionoptions then vim.opt.sessionoptions:remove("blank") end
 
   -- keep scratch windows out of a session written on the way out (:restart)
@@ -173,6 +175,7 @@ function M.setup(opts)
     template = function() require("knapp.template").insert() end,
     pane = function() require("knapp.pane").toggle() end,
     width = function() require("knapp.view").toggle() end,
+    missing = function() require("knapp.links").show_missing() end,
   }
 
   vim.api.nvim_create_user_command("Knapp", function(cmd)

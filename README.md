@@ -4,17 +4,15 @@
 > This plugin was made with extensive use of AI for my specific use-case for a
 > Neovim-Obsidian setup, so if you wish to work with it please bear that in mind.
 
-Work an [Obsidian](https://obsidian.md) vault from within Neovim: a link index that keeps backlinks
-correct when notes move, Obsidian-compatible daily/weekly/zettel notes,
-a command palette, and a readable-width live-preview view.
-
 [Knapping](https://en.wikipedia.org/wiki/Knapping) is the craft of shaping obsidian by striking flakes off it. That is
-roughly what this does to a vault.
+roughly what this does to a vault. `knapp` works on an [Obsidian](https://obsidian.md)
+vault from within Neovim: a link index that keeps backlinks correct when
+notes move, Obsidian-compatible daily/weekly/zettel notes, a command palette,
+and a readable-width live-preview view.
 
-Requires Neovim 0.11+ and a vault created by Obsidian: every folder, filename
+It requires Neovim 0.11+ and a vault created by Obsidian: every folder, filename
 format and template comes from `<vault>/.obsidian/*.json`, so Obsidian stays the
-single source of truth and nothing is configured twice. (The `vim.pack` install
-snippet below needs 0.12+; nothing else does.)
+single source of truth and nothing is configured twice.
 
 Core settings come from `app.json`, `daily-notes.json` and `templates.json`.
 Weekly notes read the **Calendar** community plugin's settings and zettel
@@ -82,6 +80,15 @@ formatter (`YYYY-[W]ww`, `Y-MM-DD dddd`, ...) and template placeholders
 **Calendar.** A month grid marking the days that already have a note. `<CR>`
 opens that day, `W` opens the week.
 
+**Existing vs missing links.** Every link is highlighted by whether it
+resolves: `KnappLink` when the target exists, `KnappLinkMissing` when it does
+not, so a typo in a note name shows up without following it. Both are defined
+with `default = true`, so a colorscheme that sets them wins. `<prefix>x` (or
+`:Knapp missing`) puts every dead link in the current note in the quickfix
+list.
+
+Set `links.enabled = false` to switch it off.
+
 **Backlinks pane.** Opens with the note, refreshes as you move between notes,
 one row per linking note with an occurrence count.
 
@@ -100,6 +107,7 @@ Buffer-local inside the vault, all under `keys.prefix` (default `<leader>o`):
 | `<prefix>b` `i` `c` `l` `h` | bold, italics, code, wikilink, highlight (toggles)                          |
 | `<prefix>r` `m` `M`         | rename, move, merge                                                         |
 | `<prefix>B` `Q`             | backlinks pane, backlinks in quickfix                                       |
+| `<prefix>x`                 | missing links in this note, in the quickfix list                            |
 | `<prefix>n` `f` `g` `t`     | new note, find notes, grep vault, insert template                           |
 | `<prefix>R` `W`             | rebuild index, toggle readable width                                        |
 
@@ -126,7 +134,7 @@ vim.keymap.set("n", "<leader>k", "<Plug>(KnappPalette)")
 The `<Plug>` names are `Knapp` plus the action: `Follow`, `Palette`, `Bold`,
 `Italic`, `Code`, `Link`, `Highlight`, `InsertBold`, `InsertLink`,
 `InsertItalic`, `Rename`, `Move`, `Merge`, `BacklinksPane`, `BacklinksQf`,
-`NewNote`, `FindNotes`, `GrepVault`, `Reindex`, `ToggleWidth`,
+`MissingLinks`, `NewNote`, `FindNotes`, `GrepVault`, `Reindex`, `ToggleWidth`,
 `InsertTemplate`, `Daily`, `Yesterday`, `Weekly`, `Zettel`, `Calendar`.
 
 Defaults are only bound where you have not already bound the matching `<Plug>`
@@ -137,7 +145,7 @@ otherwise exist outside the vault.
 `:Knapp <subcommand>` covers the same ground with completion: `palette`,
 `rename`, `move`, `merge`, `backlinks`, `follow`, `new`, `find`, `grep`,
 `index`, `daily [offset]`, `weekly [offset]`, `zettel`, `calendar`,
-`template`, `pane`, `width`.
+`template`, `pane`, `width`, `missing`.
 
 ## Configuration
 
@@ -181,6 +189,10 @@ require("knapp").setup({
   journal = {
     zettel_separator = " - ", -- "<timestamp> - <title>.md"
   },
+  links = {
+    enabled = true,  -- highlight links by whether their target exists
+    debounce = 150,  -- repaint at most this often while typing, ms
+  },
   -- 'sessionoptions' contains "blank", which stores the plugin's scratch
   -- windows in sessions and brings them back empty after :restart
   fix_sessionoptions = true,
@@ -205,6 +217,34 @@ stubbing. `make test BUSTED_ARGS=tests/link_spec.lua` runs one file.
 
 `:checkhealth knapp` reports the config, the `.obsidian` files knapp reads, and
 the index state.
+
+## Completion
+
+`[[` can complete note names from the vault, the way Obsidian's link
+autocomplete does. Register the source with
+[blink.cmp](https://github.com/Saghen/blink.cmp):
+
+```lua
+sources = {
+  -- add it for markdown only; `inherit_defaults` keeps your usual sources
+  per_filetype = {
+    markdown = { inherit_defaults = true, "knapp" },
+  },
+  providers = {
+    knapp = { name = "knapp", module = "knapp.blink", score_offset = 100 },
+  },
+}
+```
+
+Registering the provider is not enough on its own — it also has to appear in
+`sources.default` or `sources.per_filetype`, or blink never asks it for
+anything.
+
+It only offers completions inside a vault note, and only between an unclosed
+`[[` and the cursor. Picking an entry inserts the bare note name when that
+name is unambiguous and the vault-relative path when it is not — the same rule
+knapp uses when rewriting links — and closes the brackets unless they are
+already there.
 
 ## Rendering
 

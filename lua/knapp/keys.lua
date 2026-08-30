@@ -104,6 +104,13 @@ M.buffer = {
     fn = function() require("knapp.pane").toggle() end,
   },
   {
+    plug = "MissingLinks",
+    modes = "n",
+    suffix = "x",
+    desc = "missing links in quickfix",
+    fn = function() require("knapp.links").show_missing() end,
+  },
+  {
     plug = "BacklinksQf",
     modes = "n",
     suffix = "Q",

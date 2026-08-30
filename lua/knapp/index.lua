@@ -100,8 +100,25 @@ local function add_name(map, key, rel)
   table.insert(map[key], rel)
 end
 
+-- notes() and folders() derive a sorted list from every file in the vault.
+-- Rebuilding that per call showed up as 9.8ms of the 13.9ms a `[[` completion
+-- took on a 3.6k-note vault, and it is also on the path of every palette and
+-- picker call. Cached until something changes the file set.
+local derived = { notes = nil, folders = nil }
+
+local function invalidate()
+  derived.notes, derived.folders = nil, nil
+end
+
+--- Tell anything that renders links that what resolves may have changed.
+--- Scheduled because reindex() runs from inside autocommands and file writes.
+local function announce()
+  vim.schedule(function() vim.api.nvim_exec_autocmds("User", { pattern = "KnappIndexChanged" }) end)
+end
+
 --- Rebuild by_name/by_path/backlinks from state.files.
 function M.reindex()
+  invalidate()
   local st = M.state
   st.by_name, st.by_path, st.backlinks = {}, {}, {}
   for rel, entry in pairs(st.files) do
@@ -258,6 +275,7 @@ function M.build(opts)
   M.state.files = files
   M.reindex()
   M.state.built = true
+  announce()
   M.save_cache()
   return { total = vim.tbl_count(files), parsed = parsed }
 end
@@ -267,6 +285,7 @@ function M.ensure()
 end
 
 local function reparse(rel)
+  invalidate()
   local st = uv.fs_stat(config.abs(rel))
   if st then
     M.state.files[rel] = parse(rel, st.mtime.sec)
@@ -346,9 +365,11 @@ function M.update(rel)
 
   if resolution_space_changed(old, new) then
     M.reindex()
+    announce()
     return
   end
 
+  announce()
   local new_dests = outgoing(rel, new)
   for dest in pairs(old_dests) do
     if not new_dests[dest] then remove_backlink(dest, rel) end
@@ -378,20 +399,29 @@ function M.backlinks(rel)
   return M.state.backlinks[rel] or {}
 end
 
---- Every note as { rel, name, dir }, sorted by name.
+--- Every note as { rel, name, dir }, sorted by path.
+---
+--- The returned table is shared and cached; treat it as read-only.
+---@return { rel: string, name: string, dir: string }[]
 function M.notes()
   M.ensure()
+  if derived.notes then return derived.notes end
   local out = {}
   for rel, entry in pairs(M.state.files) do
     out[#out + 1] = { rel = rel, name = entry.name, dir = vim.fs.dirname(rel) }
   end
   table.sort(out, function(a, b) return a.rel < b.rel end)
+  derived.notes = out
   return out
 end
 
 --- Every directory that holds notes, plus the vault root.
+---
+--- The returned table is shared and cached; treat it as read-only.
+---@return string[]
 function M.folders()
   M.ensure()
+  if derived.folders then return derived.folders end
   local seen = { ["."] = true }
   local out = { "." }
   for rel in pairs(M.state.files) do
@@ -403,6 +433,7 @@ function M.folders()
     end
   end
   table.sort(out)
+  derived.folders = out
   return out
 end
 

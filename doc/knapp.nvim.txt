@@ -1,5 +1,5 @@
 *knapp.nvim.txt*
-                                For NVIM v0.8.0    Last change: 2026 August 29
+                             For Neovim >= 0.11    Last change: 2026 August 29
 
 ==============================================================================
 Table of Contents                               *knapp.nvim-table-of-contents*
@@ -10,6 +10,7 @@ Table of Contents                               *knapp.nvim-table-of-contents*
   - Keymaps                                    |knapp.nvim-knapp.nvim-keymaps|
   - Configuration                        |knapp.nvim-knapp.nvim-configuration|
   - Development                            |knapp.nvim-knapp.nvim-development|
+  - Completion                              |knapp.nvim-knapp.nvim-completion|
   - Rendering                                |knapp.nvim-knapp.nvim-rendering|
 
 ==============================================================================
@@ -100,6 +101,15 @@ formatter (`YYYY-[W]ww`, `Y-MM-DD dddd`, …) and template placeholders
 **Calendar.** A month grid marking the days that already have a note. `<CR>`
 opens that day, `W` opens the week.
 
+**Existing vs missing links.** Every link is highlighted by whether it
+resolves: `KnappLink` when the target exists, `KnappLinkMissing` when it does
+not, so a typo in a note name shows up without following it. Both are defined
+with `default = true`, so a colorscheme that sets them wins. `<prefix>x` (or
+`:Knapp missing`) puts every dead link in the current note in the quickfix
+list.
+
+Set `links.enabled = false` to switch it off.
+
 **Backlinks pane.** Opens with the note, refreshes as you move between notes,
 one row per linking note with an occurrence count.
 
@@ -125,6 +135,8 @@ Buffer-local inside the vault, all under `keys.prefix` (default `<leader>o`):
   <prefix>r m M      rename, move, merge
 
   <prefix>B Q        backlinks pane, backlinks in quickfix
+
+  <prefix>x          missing links in this note, in the quickfix list
 
   <prefix>n f g t    new note, find notes, grep vault, insert template
 
@@ -153,7 +165,7 @@ given:
 The `<Plug>` names are `Knapp` plus the action: `Follow`, `Palette`, `Bold`,
 `Italic`, `Code`, `Link`, `Highlight`, `InsertBold`, `InsertLink`,
 `InsertItalic`, `Rename`, `Move`, `Merge`, `BacklinksPane`, `BacklinksQf`,
-`NewNote`, `FindNotes`, `GrepVault`, `Reindex`, `ToggleWidth`,
+`MissingLinks`, `NewNote`, `FindNotes`, `GrepVault`, `Reindex`, `ToggleWidth`,
 `InsertTemplate`, `Daily`, `Yesterday`, `Weekly`, `Zettel`, `Calendar`.
 
 Defaults are only bound where you have not already bound the matching `<Plug>`
@@ -164,7 +176,7 @@ otherwise exist outside the vault.
 `:Knapp <subcommand>` covers the same ground with completion: `palette`,
 `rename`, `move`, `merge`, `backlinks`, `follow`, `new`, `find`, `grep`,
 `index`, `daily [offset]`, `weekly [offset]`, `zettel`, `calendar`, `template`,
-`pane`, `width`.
+`pane`, `width`, `missing`.
 
 
 CONFIGURATION                            *knapp.nvim-knapp.nvim-configuration*
@@ -209,6 +221,10 @@ Defaults:
       journal = {
         zettel_separator = " - ", -- "<timestamp> - <title>.md"
       },
+      links = {
+        enabled = true,  -- highlight links by whether their target exists
+        debounce = 150,  -- repaint at most this often while typing, ms
+      },
       -- 'sessionoptions' contains "blank", which stores the plugin's scratch
       -- windows in sessions and brings them back empty after :restart
       fix_sessionoptions = true,
@@ -234,6 +250,35 @@ stubbing. `make test BUSTED_ARGS=tests/link_spec.lua` runs one file.
 
 `:checkhealth knapp` reports the config, the `.obsidian` files knapp reads, and
 the index state.
+
+
+COMPLETION                                  *knapp.nvim-knapp.nvim-completion*
+
+`[[` can complete note names from the vault, the way Obsidian’s link
+autocomplete does. Register the source with blink.cmp
+<https://github.com/Saghen/blink.cmp>:
+
+>lua
+    sources = {
+      -- add it for markdown only; `inherit_defaults` keeps your usual sources
+      per_filetype = {
+        markdown = { inherit_defaults = true, "knapp" },
+      },
+      providers = {
+        knapp = { name = "knapp", module = "knapp.blink", score_offset = 100 },
+      },
+    }
+<
+
+Registering the provider is not enough on its own — it also has to appear in
+`sources.default` or `sources.per_filetype`, or blink never asks it for
+anything.
+
+It only offers completions inside a vault note, and only between an unclosed
+`[[` and the cursor. Picking an entry inserts the bare note name when that name
+is unambiguous and the vault-relative path when it is not — the same rule
+knapp uses when rewriting links — and closes the brackets unless they are
+already there.
 
 
 RENDERING                                    *knapp.nvim-knapp.nvim-rendering*

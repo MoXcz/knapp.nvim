@@ -200,7 +200,11 @@ require("knapp").setup({
     height = 10,        -- "top"/"bottom"
   },
   journal = {
+    enabled = true,           -- false: no daily/weekly/zettel commands or keys
     zettel_separator = " - ", -- "<timestamp> - <title>.md"
+  },
+  calendar = {
+    enabled = true, -- false: no calendar command, key or dashboard section
   },
   dashboard = {
     enabled = true,      -- needs snacks.nvim
@@ -219,6 +223,27 @@ require("knapp").setup({
   cache = vim.fn.stdpath("cache") .. "/knapp",
 })
 ```
+
+## Lua API
+
+Two functions are public, stable API. Everything else under `lua/knapp/` may
+change without notice.
+
+- `require("knapp.palette").register(name, fn)` adds an entry to the command
+  palette. Call it from your config after `setup()`:
+
+  ```lua
+  require("knapp.palette").register("Sync vault", function()
+    vim.cmd("!git -C ~/notes pull --rebase && git -C ~/notes push")
+  end)
+  ```
+
+- `require("knapp.index").resolve_file(target, from_rel)` resolves a link
+  target the way `gf` does -- notes through the index, then attachments and
+  other literal files in the vault -- and returns an absolute path or nil.
+  `from_rel` is the vault-relative path of the note the link appears in; it
+  breaks ties when several notes share a name. The `snacks.image` snippet
+  below is built on it.
 
 ## Development
 

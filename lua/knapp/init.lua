@@ -7,6 +7,7 @@ local M = {}
 
 --- Window-local view options plus the readable-width padding.
 local function apply_view()
+  if not config.opts.wrap.enabled then return end
   local view = require("knapp.view")
   local win = vim.api.nvim_get_current_win()
   if not view.is_note_win(win) then return end
@@ -109,18 +110,23 @@ function M.setup(opts)
     end,
   })
 
-  -- Dragging a split boundary emits WinResized continuously, and each event
-  -- would otherwise walk every window in the tab and resize two of them.
-  local refresh_view = util.debounce(20, function() require("knapp.view").refresh() end)
-  vim.api.nvim_create_autocmd({ "WinResized", "WinNew", "WinClosed", "TabEnter" }, {
-    group = group,
-    callback = refresh_view,
-  })
+  -- With the readable-width machinery off there are no padding windows to
+  -- manage, so skip creating these window-event autocommands (and the module)
+  -- altogether rather than firing a no-op on every resize.
+  if config.opts.wrap.enabled then
+    -- Dragging a split boundary emits WinResized continuously, and each event
+    -- would otherwise walk every window in the tab and resize two of them.
+    local refresh_view = util.debounce(20, function() require("knapp.view").refresh() end)
+    vim.api.nvim_create_autocmd({ "WinResized", "WinNew", "WinClosed", "TabEnter" }, {
+      group = group,
+      callback = refresh_view,
+    })
 
-  vim.api.nvim_create_autocmd("WinEnter", {
-    group = group,
-    callback = function() require("knapp.view").leave_pad() end,
-  })
+    vim.api.nvim_create_autocmd("WinEnter", {
+      group = group,
+      callback = function() require("knapp.view").leave_pad() end,
+    })
+  end
 
   -- A single note switch fires both BufEnter and BufWinEnter, and each one
   -- would rebuild the pane. Collapse the pair, and read the current buffer
@@ -172,6 +178,20 @@ function M.setup(opts)
     end,
   })
 
+  --- Refuse a subcommand whose feature is switched off, with a pointer to
+  --- the flag, instead of silently running half a disabled feature.
+  local function gated(feature, fn)
+    return function(args)
+      if not config.opts[feature].enabled then
+        vim.notify(("`%s.enabled` is false in your knapp config"):format(feature), vim.log.levels.WARN, {
+          title = "knapp",
+        })
+        return
+      end
+      fn(args)
+    end
+  end
+
   local subcommands = {
     palette = function() require("knapp.palette").open() end,
     rename = function() require("knapp.actions").rename() end,
@@ -183,10 +203,10 @@ function M.setup(opts)
     find = function() require("knapp.palette").find_notes() end,
     grep = function() require("knapp.palette").grep_vault() end,
     index = function() require("knapp.actions").reindex() end,
-    daily = function(args) require("knapp.journal").daily(tonumber(args[2]) or 0) end,
-    weekly = function(args) require("knapp.journal").weekly(tonumber(args[2]) or 0) end,
-    zettel = function() require("knapp.journal").zettel() end,
-    calendar = function() require("knapp.calendar").open() end,
+    daily = gated("journal", function(args) require("knapp.journal").daily(tonumber(args[2]) or 0) end),
+    weekly = gated("journal", function(args) require("knapp.journal").weekly(tonumber(args[2]) or 0) end),
+    zettel = gated("journal", function() require("knapp.journal").zettel() end),
+    calendar = gated("calendar", function() require("knapp.calendar").open() end),
     template = function() require("knapp.template").insert() end,
     pane = function() require("knapp.pane").toggle() end,
     width = function() require("knapp.view").toggle() end,

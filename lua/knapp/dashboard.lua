@@ -110,20 +110,27 @@ end
 ---@return table[]
 function M.sections()
   local opts = config.opts.dashboard
+  local vault_pane = { pane = 1, { title = "Vault", padding = 1 } }
+  local function entry(item) vault_pane[#vault_pane + 1] = item end
+  if config.opts.journal.enabled then
+    entry({ icon = " ", key = "d", desc = "Today's note", action = function() require("knapp.journal").daily() end })
+    entry({ icon = " ", key = "w", desc = "This week", action = function() require("knapp.journal").weekly() end })
+    entry({
+      icon = " ",
+      key = "z",
+      desc = "New fleeting note",
+      action = function() require("knapp.journal").zettel() end,
+    })
+  end
+  entry({ icon = " ", key = "n", desc = "New note", action = function() require("knapp.palette").new_note() end })
+  entry({ icon = " ", key = "f", desc = "Find notes", action = function() require("knapp.palette").find_notes() end })
+  entry({ icon = " ", key = "g", desc = "Grep vault", action = function() require("knapp.palette").grep_vault() end })
+  entry({ icon = " ", key = "q", desc = "Quit", action = ":qa" })
+  vault_pane.padding = 1
+
   local sections = {
     { section = "header" },
-    {
-      pane = 1,
-      { title = "Vault", padding = 1 },
-      { icon = " ", key = "d", desc = "Today's note", action = function() require("knapp.journal").daily() end },
-      { icon = " ", key = "w", desc = "This week", action = function() require("knapp.journal").weekly() end },
-      { icon = " ", key = "z", desc = "New fleeting note", action = function() require("knapp.journal").zettel() end },
-      { icon = " ", key = "n", desc = "New note", action = function() require("knapp.palette").new_note() end },
-      { icon = " ", key = "f", desc = "Find notes", action = function() require("knapp.palette").find_notes() end },
-      { icon = " ", key = "g", desc = "Grep vault", action = function() require("knapp.palette").grep_vault() end },
-      { icon = " ", key = "q", desc = "Quit", action = ":qa" },
-      padding = 1,
-    },
+    vault_pane,
     {
       pane = 1,
       title = "Recent notes",
@@ -132,9 +139,9 @@ function M.sections()
       cwd = config.opts.vault,
       limit = opts.recent_limit,
     },
-    { pane = 2, M.calendar_section() },
-    { pane = 2, M.todo_section() },
   }
+  if config.opts.calendar.enabled then sections[#sections + 1] = { pane = 2, M.calendar_section() } end
+  sections[#sections + 1] = { pane = 2, M.todo_section() }
   -- snacks' `startup` section hard-requires `lazy.stats`, so it breaks the
   -- whole dashboard under any other plugin manager, vim.pack included
   if package.loaded["lazy"] then sections[#sections + 1] = { section = "startup" } end

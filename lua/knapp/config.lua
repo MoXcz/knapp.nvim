@@ -55,8 +55,16 @@ M.defaults = {
     height = 10, -- used by "top"/"bottom"
   },
   journal = {
+    -- Daily, weekly and fleeting notes. Off removes their commands, palette
+    -- entries, keymaps and dashboard shortcuts.
+    enabled = true,
     -- Fleeting notes are named "<timestamp><separator><title>".
     zettel_separator = " - ",
+  },
+  calendar = {
+    -- The month calendar. Off removes its command, palette entry, keymap and
+    -- dashboard section.
+    enabled = true,
   },
   dashboard = {
     -- A vault dashboard, drawn with snacks.nvim. Opens only when Nvim starts
@@ -135,7 +143,10 @@ M.schema = {
   { "backlinks.width", positive, "a positive number" },
   { "backlinks.height", positive, "a positive number" },
 
+  { "journal.enabled", is("boolean"), "a boolean" },
   { "journal.zettel_separator", is("string"), "a string" },
+
+  { "calendar.enabled", is("boolean"), "a boolean" },
 
   { "dashboard.enabled", is("boolean"), "a boolean" },
   { "dashboard.auto", is("boolean"), "a boolean" },

@@ -194,6 +194,9 @@ end
 
 --- Resolve a link target to a vault-relative path, Obsidian-style:
 --- a path wins over a bare name, and a bare name prefers the closest file.
+---@param target string link target as written in the note, without anchor
+---@param from_rel string? vault-relative path of the linking note; breaks ties
+---@return string? rel vault-relative path, or nil when nothing matches
 function M.resolve(target, from_rel)
   if target == "" then return nil end
   local st = M.state
@@ -215,6 +218,11 @@ end
 
 --- Resolve to an absolute path, falling back to a literal file in the vault
 --- (attachments, PDFs, images - anything the index does not track).
+---
+--- Public API (see the README): third-party snippets resolve embeds with it.
+---@param target string link target as written in the note
+---@param from_rel string? vault-relative path of the linking note; breaks ties
+---@return string? abs absolute path, or nil when nothing matches
 function M.resolve_file(target, from_rel)
   local rel = M.resolve(target, from_rel)
   if rel then return config.abs(rel) end

@@ -20,6 +20,7 @@ local M = {}
 ---@field suffix string?
 ---@field palette boolean?
 ---@field group string? only bound when the matching `keys.<group>` is set
+---@field feature string? only bound when `<feature>.enabled` is not false
 
 --- Actions available inside a vault note.
 ---@type knapp.Action[]
@@ -220,6 +221,7 @@ M.global = {
   {
     plug = "Daily",
     modes = "n",
+    feature = "journal",
     suffix = "d",
     desc = "daily note",
     fn = function() require("knapp.journal").daily() end,
@@ -227,6 +229,7 @@ M.global = {
   {
     plug = "Yesterday",
     modes = "n",
+    feature = "journal",
     suffix = "y",
     desc = "yesterday's note",
     fn = function() require("knapp.journal").daily(-1) end,
@@ -234,6 +237,7 @@ M.global = {
   {
     plug = "Weekly",
     modes = "n",
+    feature = "journal",
     suffix = "w",
     desc = "weekly note",
     fn = function() require("knapp.journal").weekly() end,
@@ -241,6 +245,7 @@ M.global = {
   {
     plug = "Zettel",
     modes = "n",
+    feature = "journal",
     suffix = "z",
     desc = "new fleeting note",
     fn = function() require("knapp.journal").zettel() end,
@@ -248,6 +253,7 @@ M.global = {
   {
     plug = "Calendar",
     modes = "n",
+    feature = "calendar",
     suffix = "C",
     desc = "calendar",
     fn = function() require("knapp.calendar").open() end,
@@ -274,8 +280,12 @@ local function default_lhs(action)
   return nil
 end
 
---- Is this action switched off by its `keys.<group>` flag?
-local function disabled(action) return action.group ~= nil and not config.opts.keys[action.group] end
+--- Is this action switched off by its `keys.<group>` or `<feature>.enabled` flag?
+local function disabled(action)
+  if action.group ~= nil and not config.opts.keys[action.group] then return true end
+  local feature = action.feature and config.opts[action.feature]
+  return feature ~= nil and feature.enabled == false
+end
 
 --- Define every <Plug> mapping. Called once, from setup().
 ---
@@ -336,7 +346,7 @@ end
 function M.attach_global()
   if not config.opts.keys.enabled or not config.opts.keys.global then return end
   for _, action in ipairs(M.global) do
-    bind(action)
+    if not disabled(action) then bind(action) end
   end
 end
 

@@ -70,23 +70,41 @@ M.commands = {
       if rel then actions.trash(rel) end
     end,
   },
-  { name = "Open today's daily note", fn = function() require("knapp.journal").daily() end },
-  { name = "Open yesterday's daily note", fn = function() require("knapp.journal").daily(-1) end },
-  { name = "Open tomorrow's daily note", fn = function() require("knapp.journal").daily(1) end },
-  { name = "Open this week's weekly note", fn = function() require("knapp.journal").weekly() end },
-  { name = "Open last week's weekly note", fn = function() require("knapp.journal").weekly(-1) end },
-  { name = "New fleeting note (zettel)", fn = function() require("knapp.journal").zettel() end },
-  { name = "Open calendar", fn = function() require("knapp.calendar").open() end },
+  { name = "Open today's daily note", feature = "journal", fn = function() require("knapp.journal").daily() end },
+  { name = "Open yesterday's daily note", feature = "journal", fn = function() require("knapp.journal").daily(-1) end },
+  { name = "Open tomorrow's daily note", feature = "journal", fn = function() require("knapp.journal").daily(1) end },
+  { name = "Open this week's weekly note", feature = "journal", fn = function() require("knapp.journal").weekly() end },
+  {
+    name = "Open last week's weekly note",
+    feature = "journal",
+    fn = function() require("knapp.journal").weekly(-1) end,
+  },
+  { name = "New fleeting note (zettel)", feature = "journal", fn = function() require("knapp.journal").zettel() end },
+  { name = "Open calendar", feature = "calendar", fn = function() require("knapp.calendar").open() end },
   { name = "Insert template", fn = function() require("knapp.template").insert() end },
   { name = "Rebuild vault index", fn = actions.reindex },
 }
 
-function M.register(name, fn) table.insert(M.commands, { name = name, fn = fn }) end
+--- Add an entry to the command palette.
+---
+--- Public API: call from your config after setup().
+---@param name string label shown in the palette
+---@param fn fun() run when the entry is picked
+function M.register(name, fn) M.commands[#M.commands + 1] = { name = name, fn = fn } end
+
+--- Entries whose feature is not switched off in the config.
+local function available()
+  return vim.tbl_filter(function(c)
+    local feature = c.feature and config.opts[c.feature]
+    return not (feature and feature.enabled == false)
+  end, M.commands)
+end
 
 function M.open()
-  local names = vim.tbl_map(function(c) return c.name end, M.commands)
+  local commands = available()
+  local names = vim.tbl_map(function(c) return c.name end, commands)
   vim.ui.select(names, { prompt = "Knapp" }, function(_, idx)
-    if idx then M.commands[idx].fn() end
+    if idx then commands[idx].fn() end
   end)
 end
 

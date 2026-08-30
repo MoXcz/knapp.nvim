@@ -1,5 +1,5 @@
 *knapp.nvim.txt*
-                             For Neovim >= 0.11    Last change: 2026 August 29
+                                For NVIM v0.8.0    Last change: 2026 August 30
 
 ==============================================================================
 Table of Contents                               *knapp.nvim-table-of-contents*
@@ -9,6 +9,7 @@ Table of Contents                               *knapp.nvim-table-of-contents*
   - What it does                          |knapp.nvim-knapp.nvim-what-it-does|
   - Keymaps                                    |knapp.nvim-knapp.nvim-keymaps|
   - Configuration                        |knapp.nvim-knapp.nvim-configuration|
+  - Lua API                                    |knapp.nvim-knapp.nvim-lua-api|
   - Development                            |knapp.nvim-knapp.nvim-development|
   - Dashboard                                |knapp.nvim-knapp.nvim-dashboard|
   - Completion                              |knapp.nvim-knapp.nvim-completion|
@@ -64,26 +65,25 @@ With lazy.nvim:
 <
 
 
-DEPENDENCIES ~
+USED PLUGINS ~
 
-Nothing is required beyond Neovim itself. Each optional plugin buys one
-feature, and knapp degrades rather than errors without it:
+  --------------------------------------------------------------------------
+  Plugin                        What it adds                Without it
+  ----------------------------- --------------------------- ----------------
+  snacks.nvim                   picker-backed palette, note falls back to
+                                finder and vault grep; the  vim.ui.select;
+                                dashboard                   no dashboard
 
-  -----------------------------------------------------------------------
-  Plugin                  What it adds            Without it
-  ----------------------- ----------------------- -----------------------
-  snacks.nvim             picker-backed palette,  falls back to
-                          note finder and vault   vim.ui.select; no
-                          grep; the dashboard     dashboard
+  blink.cmp                     [[ completes note names     no completion
+                                                            source
 
-  blink.cmp               [[ completes note names no completion source
+  render-markdown.nvim          live markdown preview       knapp does not
+                                                            render markdown
+                                                            itself
 
-  render-markdown.nvim    live markdown preview   knapp does not render
-                                                  markdown itself
-
-  ripgrep                 fast vault grep through the fallback uses
-                          snacks                  'grepprg'
-  -----------------------------------------------------------------------
+  ripgrep                       fast vault grep through     the fallback
+                                snacks                      uses 'grepprg'
+  --------------------------------------------------------------------------
 `:checkhealth knapp` reports which of these it found.
 
 A vault also has to have been opened by Obsidian at least once, so that
@@ -243,7 +243,11 @@ Defaults:
         height = 10,        -- "top"/"bottom"
       },
       journal = {
+        enabled = true,           -- false: no daily/weekly/zettel commands or keys
         zettel_separator = " - ", -- "<timestamp> - <title>.md"
+      },
+      calendar = {
+        enabled = true, -- false: no calendar command, key or dashboard section
       },
       dashboard = {
         enabled = true,      -- needs snacks.nvim
@@ -262,6 +266,26 @@ Defaults:
       cache = vim.fn.stdpath("cache") .. "/knapp",
     })
 <
+
+
+LUA API                                        *knapp.nvim-knapp.nvim-lua-api*
+
+Two functions are public, stable API. Everything else under `lua/knapp/` may
+change without notice.
+
+- `require("knapp.palette").register(name, fn)` adds an entry to the command
+    palette. Call it from your config after `setup()`:
+
+>lua
+        require("knapp.palette").register("Sync vault", function()
+          vim.cmd("!git -C ~/notes pull --rebase && git -C ~/notes push")
+        end)
+<
+- `require("knapp.index").resolve_file(target, from_rel)` resolves a link target
+    the way `gf` does – notes through the index, then attachments and other
+    literal files in the vault – and returns an absolute path or nil. `from_rel`
+    is the vault-relative path of the note the link appears in; it breaks ties when
+    several notes share a name. The `snacks.image` snippet below is built on it.
 
 
 DEVELOPMENT                                *knapp.nvim-knapp.nvim-development*

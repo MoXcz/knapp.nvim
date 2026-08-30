@@ -7,7 +7,8 @@ local util = require("knapp.util")
 local uv = vim.uv
 local M = {}
 
-local CACHE_VERSION = 1
+-- 2: entries carry lname/laliases, precomputed at parse time
+local CACHE_VERSION = 2
 
 M.state = {
   built = false,
@@ -17,7 +18,12 @@ M.state = {
   backlinks = {}, -- rel -> { src_rel, ... }
 }
 
-local function cache_file() return vim.fs.joinpath(config.opts.cache, "index.json") end
+--- Path of this vault's cache file. Named after a hash of the vault path:
+--- one shared file meant two Nvim instances on two vaults thrashing each
+--- other's cache on every save.
+function M.cache_file()
+  return vim.fs.joinpath(config.opts.cache, ("index-%s.json"):format(vim.fn.sha256(config.opts.vault):sub(1, 12)))
+end
 
 local function ignored(name)
   for _, ig in ipairs(config.opts.ignore) do
@@ -86,18 +92,32 @@ local function parse(rel, mtime)
   for _, m in ipairs(link.scan(text)) do
     if m.target ~= "" then targets[#targets + 1] = m.target end
   end
+  local name = vim.fs.basename(rel):sub(1, -4)
+  local aliases = parse_aliases(text)
+  -- lowered forms are stored (and cached) rather than recomputed: reindex()
+  -- lowers every name and alias in the vault, on every rebuild
+  local laliases = {}
+  for i, alias in ipairs(aliases) do
+    laliases[i] = alias:lower()
+  end
   return {
     mtime = mtime,
-    name = vim.fs.basename(rel):sub(1, -4),
-    aliases = parse_aliases(text),
+    name = name,
+    lname = name:lower(),
+    aliases = aliases,
+    laliases = laliases,
     targets = targets,
   }
 end
 
+--- `key` must already be lowercased; entries store their lowered forms.
 local function add_name(map, key, rel)
-  key = key:lower()
-  map[key] = map[key] or {}
-  table.insert(map[key], rel)
+  local list = map[key]
+  if list then
+    list[#list + 1] = rel
+  else
+    map[key] = { rel }
+  end
 end
 
 -- notes() and folders() derive a sorted list from every file in the vault.
@@ -130,8 +150,8 @@ function M.reindex()
   local st = M.state
   st.by_name, st.by_path, st.backlinks = {}, {}, {}
   for rel, entry in pairs(st.files) do
-    add_name(st.by_name, entry.name, rel)
-    for _, alias in ipairs(entry.aliases or {}) do
+    add_name(st.by_name, entry.lname, rel)
+    for _, alias in ipairs(entry.laliases or {}) do
       add_name(st.by_name, alias, rel)
     end
     st.by_path[rel:sub(1, -4):lower()] = rel
@@ -194,7 +214,7 @@ function M.resolve_file(target, from_rel)
 end
 
 local function load_cache()
-  local text = util.read_file(cache_file())
+  local text = util.read_file(M.cache_file())
   if not text then return nil end
   local ok, data = pcall(vim.json.decode, text)
   if not ok or type(data) ~= "table" or data.version ~= CACHE_VERSION then return nil end
@@ -214,7 +234,7 @@ local SAVE_DEBOUNCE_MS = 2000
 --- target, which is atomic on POSIX.
 function M.save_cache()
   vim.fn.mkdir(config.opts.cache, "p")
-  local path = cache_file()
+  local path = M.cache_file()
   local tmp = path .. ".tmp"
   local fd = io.open(tmp, "w")
   if not fd then return false end
@@ -307,9 +327,9 @@ end
 local function name_keys(entry)
   local keys = {}
   if not entry then return keys end
-  keys[entry.name:lower()] = true
-  for _, alias in ipairs(entry.aliases or {}) do
-    keys[alias:lower()] = true
+  keys[entry.lname] = true
+  for _, alias in ipairs(entry.laliases or {}) do
+    keys[alias] = true
   end
   return keys
 end

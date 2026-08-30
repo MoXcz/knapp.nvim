@@ -2,7 +2,10 @@
 -- writes into its settings and templates.
 local M = {}
 
--- longest token first: the scanner takes the first match
+-- WW/ww format the ISO week number (%V) and gg/gggg the ISO week-numbering
+-- year (%G), which is correct moment.js behaviour -- but a "YYYY-[W]WW"
+-- format mixes the calendar year into an ISO week name, and the two disagree
+-- in the days around New Year where %Y ~= %G.
 local tokens = {
   { "YYYY", function(t) return os.date("%Y", t) end },
   { "gggg", function(t) return os.date("%G", t) end },
@@ -44,6 +47,17 @@ local tokens = {
   },
 }
 
+-- The scanner wants the longest token that matches at the current position.
+-- Walking the list compared up to 30 prefixes per character; a hash per token
+-- length makes it one lookup per length instead, longest first.
+local by_len, max_len = {}, 0
+for _, tok in ipairs(tokens) do
+  local n = #tok[1]
+  by_len[n] = by_len[n] or {}
+  by_len[n][tok[1]] = tok[2]
+  if n > max_len then max_len = n end
+end
+
 --- Format `time` (defaults to now) using a moment-style pattern.
 --- Text inside [brackets] is literal.
 function M.format(fmt, time)
@@ -62,10 +76,12 @@ function M.format(fmt, time)
       end
     else
       local matched = false
-      for _, tok in ipairs(tokens) do
-        if fmt:sub(i, i + #tok[1] - 1) == tok[1] then
-          out[#out + 1] = tok[2](time)
-          i = i + #tok[1]
+      for n = max_len, 1, -1 do
+        local map = by_len[n]
+        local fn = map and map[fmt:sub(i, i + n - 1)]
+        if fn then
+          out[#out + 1] = fn(time)
+          i = i + n
           matched = true
           break
         end

@@ -112,8 +112,8 @@ local function check_obsidian(opts)
   end
 end
 
-local function check_cache(opts)
-  local path = vim.fs.joinpath(opts.cache, "index.json")
+local function check_cache()
+  local path = require("knapp.index").cache_file()
   local stat = vim.uv.fs_stat(path)
   if not stat then
     info(("no index cache yet (%s)"):format(path))
@@ -197,7 +197,7 @@ function M.check()
   check_sessionoptions(opts)
 
   start("knapp.nvim: index")
-  check_cache(opts)
+  check_cache()
   check_index()
 
   start("knapp.nvim: optional dependencies")

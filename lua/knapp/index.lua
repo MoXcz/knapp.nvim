@@ -36,6 +36,8 @@ end
 local function walk()
   local out = {}
   local stack = { "" }
+  -- seed with the root, or a symlink pointing back at the vault re-walks it
+  local seen_dirs = { [uv.fs_realpath(config.abs("")) or config.abs("")] = true }
   while #stack > 0 do
     local dir = table.remove(stack)
     local handle = uv.fs_scandir(config.abs(dir))
@@ -44,8 +46,21 @@ local function walk()
         local name, kind = uv.fs_scandir_next(handle)
         if not name then break end
         local rel = dir == "" and name or (dir .. "/" .. name)
+        if kind == "link" then
+          -- a symlinked note or folder is part of the vault; stat follows it
+          local st = uv.fs_stat(config.abs(rel))
+          kind = st and st.type or "link"
+        end
         if kind == "directory" then
-          if not ignored(name) and not ignored(rel) then stack[#stack + 1] = rel end
+          if not ignored(name) and not ignored(rel) then
+            -- a symlink can point back into the vault: never walk the same
+            -- real directory twice, or a cycle walks forever
+            local real = uv.fs_realpath(config.abs(rel))
+            if real and not seen_dirs[real] then
+              seen_dirs[real] = true
+              stack[#stack + 1] = rel
+            end
+          end
         elseif util.is_md(name) then
           local st = uv.fs_stat(config.abs(rel))
           out[rel] = st and st.mtime.sec or 0
@@ -285,31 +300,100 @@ function M.flush_cache()
   if dirty then M.save_cache() end
 end
 
---- Build the index. Cached entries whose mtime is unchanged are reused.
-function M.build(opts)
-  opts = opts or {}
+--- Walk the vault and split it against the cache: entries whose mtime is
+--- unchanged are reused as-is, the rest are queued for parsing.
+local function plan_build(opts)
   local cached = (not opts.force) and load_cache() or nil
   local found = walk()
-  local files, parsed = {}, 0
+  local files, queue = {}, {}
   for rel, mtime in pairs(found) do
     local old = cached and cached[rel]
     if old and old.mtime == mtime then
       files[rel] = old
     else
-      files[rel] = parse(rel, mtime)
-      parsed = parsed + 1
+      queue[#queue + 1] = { rel, mtime }
     end
   end
-  M.state.files = files
+  return { files = files, queue = queue, i = 1 }
+end
+
+local function finish_build(run)
+  M.state.files = run.files
   M.reindex()
   M.state.built = true
   announce()
   M.save_cache()
-  return { total = vim.tbl_count(files), parsed = parsed }
+  return { total = vim.tbl_count(run.files), parsed = #run.queue }
+end
+
+--- In-progress background build, or nil. ensure() drains it synchronously.
+local pending = nil
+
+--- Build the index now, synchronously.
+function M.build(opts)
+  pending = nil -- a full build supersedes any background one
+  local run = plan_build(opts or {})
+  while run.i <= #run.queue do
+    local item = run.queue[run.i]
+    run.files[item[1]] = parse(item[1], item[2])
+    run.i = run.i + 1
+  end
+  return finish_build(run)
+end
+
+--- How long one slice of a background build may hold the main loop.
+local BUILD_SLICE_MS = 5
+
+--- Build the index without freezing the editor: parse in time-boxed slices,
+--- yielding to the main loop between them. The cold build on a large vault
+--- takes long enough to feel as a hang when the first note opens; nothing in
+--- it needs to be synchronous. Anything that requires a complete index in the
+--- meantime calls ensure(), which finishes the remaining work on the spot.
+function M.build_background()
+  if M.state.built or pending then return end
+  pending = plan_build({})
+  local run = pending
+  local function step()
+    if pending ~= run then return end -- drained by ensure() or superseded
+    local deadline = uv.hrtime() + BUILD_SLICE_MS * 1e6
+    while run.i <= #run.queue do
+      local item = run.queue[run.i]
+      run.files[item[1]] = parse(item[1], item[2])
+      run.i = run.i + 1
+      if uv.hrtime() >= deadline then
+        vim.schedule(step)
+        return
+      end
+    end
+    pending = nil
+    finish_build(run)
+  end
+  step()
 end
 
 function M.ensure()
-  if not M.state.built then M.build() end
+  if M.state.built then return end
+  if pending then
+    local run = pending
+    pending = nil
+    while run.i <= #run.queue do
+      local item = run.queue[run.i]
+      run.files[item[1]] = parse(item[1], item[2])
+      run.i = run.i + 1
+    end
+    finish_build(run)
+  else
+    M.build()
+  end
+end
+
+--- Non-blocking ensure(): kick off a background build when none has started
+--- and report whether the index is complete. For callers that can degrade
+--- and repaint later, from the `KnappIndexChanged` autocmd the finished
+--- build fires.
+function M.try_ensure()
+  if not M.state.built then M.build_background() end
+  return M.state.built
 end
 
 local function reparse(rel)

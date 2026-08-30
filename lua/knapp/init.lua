@@ -94,7 +94,9 @@ function M.setup(opts)
       if not config.in_vault(name) then return end
       attach(ev.buf)
       apply_view()
-      vim.schedule(function() index.ensure() end)
+      -- background, not ensure(): the cold build on a big vault froze the
+      -- editor for the first note of the session
+      vim.schedule(function() index.build_background() end)
     end,
   })
 
@@ -124,13 +126,17 @@ function M.setup(opts)
   -- would rebuild the pane. Collapse the pair, and read the current buffer
   -- when the work actually runs rather than when the event fired.
   if config.opts.backlinks.enabled then
-    local refresh_pane = util.debounce(25, function()
+    local refresh_pane = util.debounce(25, function(force)
       -- re-read the flag here, not just at setup: a debounced call outlives
       -- the autocommand that scheduled it
       if not config.opts.backlinks.enabled then return end
+      -- while the cold build runs in the background, filling the pane would
+      -- drain it synchronously -- the KnappIndexChanged below repaints once
+      -- the build lands
+      if not index.try_ensure() then return end
       local pane = require("knapp.pane")
       if pane.is_open() then
-        pane.update()
+        pane.update(force)
       elseif config.opts.backlinks.auto then
         pane.open(false)
       end
@@ -141,7 +147,15 @@ function M.setup(opts)
       callback = function(ev)
         if not config.in_vault(vim.api.nvim_buf_get_name(ev.buf)) then return end
         if vim.api.nvim_win_get_config(0).relative ~= "" then return end
-        refresh_pane()
+        refresh_pane(false)
+      end,
+    })
+    -- what links here can change on any index change, not only a note switch
+    vim.api.nvim_create_autocmd("User", {
+      group = group,
+      pattern = "KnappIndexChanged",
+      callback = function()
+        if config.in_vault(vim.api.nvim_buf_get_name(0)) then refresh_pane(true) end
       end,
     })
   end

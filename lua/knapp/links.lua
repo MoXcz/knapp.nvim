@@ -53,7 +53,10 @@ function M.refresh(bufnr)
   local name = vim.api.nvim_buf_get_name(bufnr)
   if not config.in_vault(name) or not util.is_md(name) then return end
 
-  index.ensure()
+  -- while the cold build runs in the background, resolving would drain it
+  -- synchronously; the KnappIndexChanged repaint covers this buffer once the
+  -- build lands
+  if not index.try_ensure() then return end
   local from = config.rel(name)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local text = table.concat(lines, "\n")

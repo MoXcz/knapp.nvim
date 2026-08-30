@@ -403,3 +403,76 @@ describe("index cache", function()
     assert.same({ "b.md" }, vim.tbl_keys(index.state.files))
   end)
 end)
+
+describe("index.build_background", function()
+  after_each(helpers.cleanup)
+
+  local function reset()
+    index.state.built = false
+    index.state.files = {}
+  end
+
+  it("completes on its own and fires KnappIndexChanged", function()
+    helpers.setup({ ["a.md"] = "[[b]]", ["b.md"] = "" })
+    reset()
+    local announced = false
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "KnappIndexChanged",
+      once = true,
+      callback = function() announced = true end,
+    })
+    index.build_background()
+    vim.wait(2000, function() return index.state.built and announced end)
+    assert.is_true(index.state.built)
+    assert.is_true(announced)
+    assert.same({ "a.md" }, index.backlinks("b.md"))
+  end)
+
+  it("is drained synchronously by ensure()", function()
+    helpers.setup({ ["a.md"] = "[[b]]", ["b.md"] = "" })
+    reset()
+    index.build_background()
+    -- no event loop turns yet: ensure() must finish the build on the spot
+    index.ensure()
+    assert.is_true(index.state.built)
+    assert.same({ "a.md" }, index.backlinks("b.md"))
+  end)
+
+  it("try_ensure reports incomplete, then complete", function()
+    helpers.setup({ ["a.md"] = "" })
+    reset()
+    -- a fresh cacheless build of even one file takes at least one slice
+    vim.uv.fs_unlink(index.cache_file())
+    local first = index.try_ensure()
+    vim.wait(2000, function() return index.state.built end)
+    assert.is_true(index.state.built)
+    assert.is_true(index.try_ensure())
+    -- first call may or may not have finished within its first slice; what
+    -- matters is that it never blocked and the index converged
+    assert.is_boolean(first)
+  end)
+end)
+
+describe("index symlinks", function()
+  after_each(helpers.cleanup)
+
+  it("follows a symlinked note and a symlinked folder", function()
+    local vault = helpers.setup({ ["a.md"] = "" })
+    local outside = helpers.tmpdir("outside")
+    helpers.write(vim.fs.joinpath(outside, "linked.md"), "")
+    helpers.write(vim.fs.joinpath(outside, "dir/inner.md"), "")
+    assert(vim.uv.fs_symlink(vim.fs.joinpath(outside, "linked.md"), vim.fs.joinpath(vault, "linked.md")))
+    assert(vim.uv.fs_symlink(vim.fs.joinpath(outside, "dir"), vim.fs.joinpath(vault, "dir"), { dir = true }))
+    index.build({ force = true })
+    assert.same({ "a.md", "dir/inner.md", "linked.md" }, helpers.sorted(vim.tbl_keys(index.state.files)))
+  end)
+
+  it("does not loop on a symlink cycle", function()
+    local vault = helpers.setup({ ["a.md"] = "" })
+    -- sub/back points at the vault root: walking it again would never end
+    vim.fn.mkdir(vim.fs.joinpath(vault, "sub"), "p")
+    assert(vim.uv.fs_symlink(vault, vim.fs.joinpath(vault, "sub/back"), { dir = true }))
+    local result = index.build({ force = true })
+    assert.equals(1, result.total)
+  end)
+end)

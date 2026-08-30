@@ -72,6 +72,15 @@ describe("config.setup validation", function()
     local unknown = config.unknown_keys({ vault = "/x", nonsense = true, wrap = { typo = 1 } })
     assert.same({ "nonsense", "wrap.typo" }, helpers.sorted(unknown))
   end)
+
+  it("does not flag the entries of a list option", function()
+    -- a 5th ignore entry is a value, not an unknown option called "5"
+    local unknown = config.unknown_keys({
+      vault = "/x",
+      ignore = { ".obsidian", ".trash", ".git", ".stfolder", ".syncthing", "attic" },
+    })
+    assert.same({}, unknown)
+  end)
 end)
 
 describe("config paths", function()

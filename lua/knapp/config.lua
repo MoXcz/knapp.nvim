@@ -201,6 +201,9 @@ function M.unknown_keys(opts)
   local out = {}
   local function walk(user, default, prefix)
     if type(user) ~= "table" or type(default) ~= "table" then return end
+    -- a list option (`ignore`) is one value, not a table of options: a user
+    -- list longer than the default is not a set of typo'd keys "5", "6", ...
+    if vim.islist(user) or vim.islist(default) then return end
     for key, value in pairs(user) do
       local path = prefix == "" and tostring(key) or (prefix .. "." .. tostring(key))
       -- `vault` has no default, so it cannot be found by walking the defaults

@@ -4,6 +4,10 @@
 > This plugin was made with extensive use of AI for my specific use-case for a
 > Neovim-Obsidian setup, so if you wish to work with it please bear that in mind.
 
+<p align="center">
+  <img src="./img/plugin.png" width="600">
+</p>
+
 [Knapping](https://en.wikipedia.org/wiki/Knapping) is the craft of shaping obsidian by striking flakes off it. That is
 roughly what this does to a vault. `knapp` is designed to work alongisde an [Obsidian](https://obsidian.md). It tries
 to emulate a lot of the behavior Obsidian has that makes it compelling to use as an interface
@@ -269,6 +273,8 @@ the index state.
 
 ## Dashboard
 
+![dashboard](./img/dashbaord.png)
+
 With [snacks.nvim](https://github.com/folke/snacks.nvim), starting Neovim with
 no file inside the vault opens a dashboard: shortcuts for today's note and the
 journal, the notes you opened most recently, this month's calendar with the
@@ -294,6 +300,8 @@ dashboard = {
 ```
 
 ## Completion
+
+![completion](./img/completion.png)
 
 `[[` can complete note names from the vault, the way Obsidian's link
 autocomplete does. Register the source with

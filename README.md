@@ -5,19 +5,30 @@
 > Neovim-Obsidian setup, so if you wish to work with it please bear that in mind.
 
 [Knapping](https://en.wikipedia.org/wiki/Knapping) is the craft of shaping obsidian by striking flakes off it. That is
-roughly what this does to a vault. `knapp` works on an [Obsidian](https://obsidian.md)
-vault from within Neovim: a link index that keeps backlinks correct when
-notes move, Obsidian-compatible daily/weekly/zettel notes, a command palette,
-and a readable-width live-preview view.
+roughly what this does to a vault. `knapp` is designed to work alongisde an [Obsidian](https://obsidian.md). It tries
+to emulate a lot of the behavior Obsidian has that makes it compelling to use as an interface
+for Makrdown note-taking:
 
-It requires Neovim 0.11+ and a vault created by Obsidian: every folder, filename
-format and template comes from `<vault>/.obsidian/*.json`, so Obsidian stays the
-single source of truth and nothing is configured twice.
+- **Vault indexing**. It keeps tracks of notes with their backlinks and paths, making it
+  easy to rename, merge, and move around files and update links automatically.
+- **Plugin-compatible**. It makes use of the configuration for the daily, weekly, and unique
+  notes
+- **Command palette**. Just an easy way to have all the actions at the use of a
+  single keymap.
+- **Readable-width**. The `wrap.pad` option can be used to generate an artificial padding
+  that emulates how Obsidian created a width comfortable for reading.
 
-Core settings come from `app.json`, `daily-notes.json` and `templates.json`.
-Weekly notes read the **Calendar** community plugin's settings and zettel
-prefixes read **Zettelkasten Prefixer**; without those plugins, knapp falls
-back to their defaults. `:checkhealth knapp` lists which files it found.
+This plugin requires Neovim 0.11+ and a vault created by Obsidian, as it reads the
+contents of `<vault>/.obsidian/*.json`. This makes it easy to keep both systems in sync
+without having to configure them twice:
+
+- `app.json`. New-note and attachments directory
+- `daily-notes.json`. Daily note folder, format and template.
+- `templates.json`. Templates directory, date and time formats.
+- `plugins/calendar/data.json`. Weeknly note directory, format, template and week start.
+- `zk-prefixer.json`. Zettelkasten prefixer for directory, timestamp format and template.
+
+> The idea is to be able to make use of this plugin independenlty of Obsidian
 
 ## Install
 
@@ -27,7 +38,7 @@ With `vim.pack` (Neovim 0.12+):
 vim.pack.add({
   {
     src = "https://github.com/MoXcz/knapp.nvim",
-    version = vim.version.range("^0.1"),
+    version = vim.version.range("^0.2"),
   },
 })
 
@@ -44,28 +55,23 @@ With lazy.nvim:
 { "MoXcz/knapp.nvim", opts = { vault = "~/notes" } }
 ```
 
+It's recommended to run `:checkhealth knapp` at a first run to se which files the plugin
+found, and any missing dependencies you might want.
+
 ### Used plugins
 
-| Plugin                                                                               | What it adds                                                                   | Without it                                  |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------- |
-| [snacks.nvim](https://github.com/folke/snacks.nvim)                                  | picker-backed palette, note finder and vault grep; the [dashboard](#dashboard) | falls back to `vim.ui.select`; no dashboard |
-| [blink.cmp](https://github.com/Saghen/blink.cmp)                                     | `[[` [completes note names](#completion)                                       | no completion source                        |
-| [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim) | live markdown preview                                                          | knapp does not render markdown itself       |
-| `ripgrep`                                                                            | fast vault grep through snacks                                                 | the fallback uses `'grepprg'`               |
+- [snacks.nvim](https://github.com/folke/snacks.nvim). Used as the picker backend for the command pallete, note finder
+  and vault grep. It's also use to present a [dashboard](#dashboard). If the plugin isn't
+  present the picker uses `vim.ui.select` and the dashboard isn't available.
+- [blink.cmp](https://github.com/Saghen/blink.cmp). Used as the completion source so that when `[[` is used the vault
+  notes are displayed. Without it there's no completion.
+- [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim). Live markdown preview.
+- `ripgrep`. Fast vault grep, fallback to `grepprg`.
+- `snacks.image`. Used to render images and LaTeX similar to Obsidian's live-preview.
 
-`:checkhealth knapp` reports which of these it found.
-
-A vault also has to have been opened by Obsidian at least once, so that
-`.obsidian/` exists. Weekly notes read the **Calendar** community plugin's
-settings and zettel prefixes read **Zettelkasten Prefixer**; without those
-plugins knapp uses their defaults.
-
-An option with the wrong type or an unrecognised value is reported and replaced
-with its default, so a typo does not stop the plugin loading.
-
-Run `:checkhealth knapp` after setup. Nearly everything knapp does is derived
-from `<vault>/.obsidian/*.json`, so when a note lands in the wrong folder the
-report names the file that is missing or malformed.
+The recommended setup is that if you don't have a vault, to [install Obsidian](https://obsidian.md/download) to create a
+new vault and configure `Daily Notes`, `Templates`, `Unique note creator`, and installing the
+`Calendar` community plugin and configure that as well.
 
 ## What it does
 
@@ -99,8 +105,6 @@ not, so a typo in a note name shows up without following it. Both are defined
 with `default = true`, so a colorscheme that sets them wins. `<prefix>x` (or
 `:Knapp missing`) puts every dead link in the current note in the quickfix
 list.
-
-Set `links.enabled = false` to switch it off.
 
 **Backlinks pane.** Opens with the note, refreshes as you move between notes,
 one row per linking note with an occurrence count.
@@ -307,34 +311,8 @@ sources = {
 }
 ```
 
-Registering the provider is not enough on its own — it also has to appear in
-`sources.default` or `sources.per_filetype`, or blink never asks it for
-anything.
-
 It only offers completions inside a vault note, and only between an unclosed
 `[[` and the cursor. Picking an entry inserts the bare note name when that
-name is unambiguous and the vault-relative path when it is not — the same rule
-knapp uses when rewriting links — and closes the brackets unless they are
+name is unambiguous and the vault-relative path when it is not, the same rule
+knapp uses when rewriting links, and closes the brackets unless they are
 already there.
-
-## Rendering
-
-knapp does not render markdown, images or math itself. It pairs with
-[render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
-for live preview and `snacks.image` for images and LaTeX. snacks already
-resolves Obsidian's `![[embed]]` syntax; point it at the vault index so bare
-filenames resolve from anywhere:
-
-```lua
-image = {
-  enabled = true,
-  resolve = function(file, src)
-    local ok, config = pcall(require, "knapp.config")
-    if not ok or not config.in_vault(file) then return nil end
-    local index = require("knapp.index")
-    index.ensure()
-    local target = require("knapp.link").decode(src)
-    return index.resolve_file(target, config.rel(file))
-  end,
-}
-```

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/MoXcz/knapp.nvim/compare/v0.1.0...v0.2.0) (2026-08-30)
+
+
+### Features
+
+* complete [[ links with blink, and mark links that point nowhere ([dff074b](https://github.com/MoXcz/knapp.nvim/commit/dff074bcb2a6fb8900e21266274bf30966873c12))
+* **dashboard:** add a vault dashboard and a task-list reader ([8c090da](https://github.com/MoXcz/knapp.nvim/commit/8c090daca59a7349c91c76e79fbaf3beb344d2d0))
+* journal/calendar feature flags, documented public API ([019c3c4](https://github.com/MoXcz/knapp.nvim/commit/019c3c45fad3308a08d27bd050eaf0376bb25e50))
+
+
+### Bug Fixes
+
+* close the edges the pre-0.2.0 ([2719bf3](https://github.com/MoXcz/knapp.nvim/commit/2719bf33282802689e26d46f4e0c125c156ca3d5))
+* stop flagging extra ignore entries as unknown options ([c99a2d8](https://github.com/MoXcz/knapp.nvim/commit/c99a2d853c718ac07f4827591d7912cf4afdc77e))
+
+
+### Performance
+
+* build the cold index in background slices instead of freezing the UI ([f3ff7ae](https://github.com/MoXcz/knapp.nvim/commit/f3ff7ae83afdb9dbf25afd747b8b11d196a8a571))
+* precompute lowered names, per-vault cache file, hashed date tokens ([a2f6287](https://github.com/MoXcz/knapp.nvim/commit/a2f62879f5fe3cdeb821dd3bb30109fd774137cc))
+* remove stat loops and quadratic link scan from hot paths ([c698ab8](https://github.com/MoXcz/knapp.nvim/commit/c698ab8d70430c31fdf6b44e8aca42904973e0ed))
+
 ## 0.1.0 (2026-08-29)
 
 

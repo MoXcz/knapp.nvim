@@ -11,6 +11,30 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("knapp_links")
 
+-- resolve_file() falls back to uv.fs_stat for anything the index cannot
+-- resolve -- attachments, and every missing link, at two stats each. A note
+-- with many of those pays that on every debounced repaint while typing.
+-- Memoized per (source, target); dropped whenever `index.generation` moves,
+-- which is whenever what resolves can change. The generation check is
+-- synchronous where the `KnappIndexChanged` autocmd is scheduled, so a
+-- refresh right after an index update never reads a stale cache. The one
+-- staleness this admits: an attachment added on disk outside Nvim stays
+-- dimmed until the next index change.
+local resolved, resolved_gen = {}, -1
+
+local function target_exists(target, from)
+  if resolved_gen ~= index.generation then
+    resolved, resolved_gen = {}, index.generation
+  end
+  local key = from .. "\0" .. target
+  local hit = resolved[key]
+  if hit == nil then
+    hit = index.resolve_file(target, from) ~= nil
+    resolved[key] = hit
+  end
+  return hit
+end
+
 local function hl_setup()
   -- `default = true` so a colorscheme that defines these wins
   vim.api.nvim_set_hl(0, "KnappLink", { link = "@markup.link.label.markdown_inline", default = true })
@@ -37,8 +61,11 @@ function M.refresh(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   for _, m in ipairs(link.scan_lines(text)) do
     -- embeds and attachments resolve to files the index does not track, so ask
-    -- the same resolver `gf` uses rather than the note index alone
-    local exists = index.resolve_file(m.target, from) ~= nil
+    -- the same resolver `gf` uses rather than the note index alone. An
+    -- anchor-only [[#heading]] has no target and points at this note itself;
+    -- without the guard it would "exist" only because resolve_file("") stats
+    -- the vault root.
+    local exists = m.target == "" or target_exists(m.target, from)
     local line = lines[m.lnum] or ""
     pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, m.lnum - 1, m.col - 1, {
       end_row = m.lnum - 1,
@@ -60,7 +87,8 @@ function M.missing(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local out = {}
   for _, m in ipairs(link.scan_lines(table.concat(lines, "\n"))) do
-    if not index.resolve_file(m.target, from) then
+    -- anchor-only [[#heading]] points at this note itself; never missing
+    if m.target ~= "" and not target_exists(m.target, from) then
       out[#out + 1] = {
         filename = name,
         lnum = m.lnum,

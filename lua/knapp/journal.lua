@@ -84,12 +84,17 @@ function M.zettel()
 end
 
 --- The daily/weekly notes that already exist in a month, as { [day] = rel }.
+---
+--- Existence comes from the index -- a hash lookup -- not `fs_stat`: the
+--- calendar re-renders on every `[`/`]` press, and 31 syscalls per render is
+--- what this used to cost. The stat path remains only for an unbuilt index.
 function M.month_dailies(year, month)
   local out = {}
+  local files = index.state.built and index.state.files or nil
   local days = date.parts(date.of(year, month + 1, 0)).day
   for day = 1, days do
     local rel = M.daily_path(date.of(year, month, day))
-    if M.exists(rel) then out[day] = rel end
+    if (files and files[rel] ~= nil) or (not files and M.exists(rel)) then out[day] = rel end
   end
   return out
 end

@@ -82,19 +82,19 @@ function M.scan(text)
     }
     init = e + 1
   end
-  -- markdown links (and embeds); skip anything that is really a wikilink
+  -- markdown links (and embeds); skip anything that is really a wikilink.
+  -- Both scans move left to right, so one cursor through the wikilink list
+  -- replaces the per-match rescan that was quadratic on link-dense notes.
+  local n_wiki, wi = #out, 1
   init = 1
   while true do
     local s, e, bang, label, dest = text:find("(!?)%[([^%[%]]-)%]%(([^%(%)]-)%)", init)
     if not s then break end
     init = e + 1
-    local overlaps = false
-    for _, m in ipairs(out) do
-      if s <= m.e and e >= m.s then
-        overlaps = true
-        break
-      end
+    while wi <= n_wiki and out[wi].e < s do
+      wi = wi + 1
     end
+    local overlaps = wi <= n_wiki and out[wi].s <= e
     if not overlaps then
       local raw = M.decode(vim.trim(dest))
       -- strip an optional "title" suffix

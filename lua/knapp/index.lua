@@ -106,8 +106,16 @@ end
 -- picker call. Cached until something changes the file set.
 local derived = { notes = nil, folders = nil }
 
+--- Bumped whenever the file set or any note's links change, so callers that
+--- cache anything derived from resolution (see links.lua) can tell their
+--- cache is stale synchronously -- the `KnappIndexChanged` autocmd is
+--- scheduled and arrives too late for a caller that reads right after an
+--- update.
+M.generation = 0
+
 local function invalidate()
   derived.notes, derived.folders = nil, nil
+  M.generation = M.generation + 1
 end
 
 --- Tell anything that renders links that what resolves may have changed.

@@ -58,7 +58,13 @@ function source:get_completions(ctx, callback)
   end
 
   local index = require("knapp.index")
-  index.ensure()
+  -- never drain an in-flight background build from insert mode: answer
+  -- incomplete and empty, and blink re-queries on the next keystroke, by
+  -- which point the build has landed
+  if not index.try_ensure() then
+    callback({ items = {}, is_incomplete_backward = true, is_incomplete_forward = true })
+    return
+  end
 
   -- Obsidian closes the brackets for you; only add them when they are not
   -- already sitting after the cursor (`format.insert_pair` puts them there).

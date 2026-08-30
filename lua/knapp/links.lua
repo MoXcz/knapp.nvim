@@ -17,9 +17,14 @@ local ns = vim.api.nvim_create_namespace("knapp_links")
 -- Memoized per (source, target); dropped whenever `index.generation` moves,
 -- which is whenever what resolves can change. The generation check is
 -- synchronous where the `KnappIndexChanged` autocmd is scheduled, so a
--- refresh right after an index update never reads a stale cache. The one
--- staleness this admits: an attachment added on disk outside Nvim stays
--- dimmed until the next index change.
+-- refresh right after an index update never reads a stale cache.
+--
+-- Only positive answers are cached: a missing target can start existing at
+-- any moment without the generation moving (an attachment written from Nvim
+-- bumps nothing, since only *.md writes update the index), and a cached
+-- "missing" would keep the link dimmed indefinitely. Re-stating the few
+-- genuinely missing targets per repaint is cheap; re-resolving every good
+-- link was the cost worth saving.
 local resolved, resolved_gen = {}, -1
 
 local function target_exists(target, from)
@@ -27,11 +32,9 @@ local function target_exists(target, from)
     resolved, resolved_gen = {}, index.generation
   end
   local key = from .. "\0" .. target
-  local hit = resolved[key]
-  if hit == nil then
-    hit = index.resolve_file(target, from) ~= nil
-    resolved[key] = hit
-  end
+  if resolved[key] then return true end
+  local hit = index.resolve_file(target, from) ~= nil
+  if hit then resolved[key] = true end
   return hit
 end
 
@@ -138,7 +141,7 @@ function M.setup(group)
   -- resolving because the note it points at was just created elsewhere.
   vim.api.nvim_create_autocmd({ "BufWinEnter", "TextChanged", "TextChangedI", "InsertLeave" }, {
     group = group,
-    pattern = "*.md",
+    pattern = util.md_patterns,
     callback = queue,
   })
 

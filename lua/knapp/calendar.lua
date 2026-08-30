@@ -169,6 +169,9 @@ end
 ---@return string[] lines
 ---@return table[] marks
 function M.grid(year, month)
+  -- the dashboard can draw the grid before open() ever ran, and marks
+  -- referencing undefined groups render as no marking at all
+  hl_setup()
   local lines, _, _, marks = build(year, month)
   return lines, marks
 end

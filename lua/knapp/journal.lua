@@ -85,16 +85,33 @@ end
 
 --- The daily/weekly notes that already exist in a month, as { [day] = rel }.
 ---
---- Existence comes from the index -- a hash lookup -- not `fs_stat`: the
---- calendar re-renders on every `[`/`]` press, and 31 syscalls per render is
---- what this used to cost. The stat path remains only for an unbuilt index.
+--- One directory listing per parent folder instead of a `fs_stat` per day
+--- (the calendar re-renders on every `[`/`]` press, and 31 syscalls per
+--- render is what this used to cost). Deliberately not answered from the
+--- index: the vault is shared with Obsidian, so a daily note can appear or
+--- disappear on disk without this instance ever hearing about it.
 function M.month_dailies(year, month)
   local out = {}
-  local files = index.state.built and index.state.files or nil
   local days = date.parts(date.of(year, month + 1, 0)).day
+  local listed = {} -- dir -> set of file names, or false when the dir is absent
   for day = 1, days do
     local rel = M.daily_path(date.of(year, month, day))
-    if (files and files[rel] ~= nil) or (not files and M.exists(rel)) then out[day] = rel end
+    local dir = vim.fs.dirname(rel)
+    local names = listed[dir]
+    if names == nil then
+      names = false
+      local handle = uv.fs_scandir(config.abs(dir))
+      if handle then
+        names = {}
+        while true do
+          local name = uv.fs_scandir_next(handle)
+          if not name then break end
+          names[name] = true
+        end
+      end
+      listed[dir] = names
+    end
+    if names and names[vim.fs.basename(rel)] then out[day] = rel end
   end
   return out
 end

@@ -51,6 +51,11 @@ end
 ---@return boolean
 function M.is_md(name) return type(name) == "string" and name:sub(-3):lower() == ".md" end
 
+--- Autocommand patterns matching every case of the .md extension. Autocmd
+--- patterns are case-sensitive on Linux, so a bare "*.md" silently skips
+--- `Shouty.MD` while is_md() and the indexer accept it.
+M.md_patterns = { "*.md", "*.MD", "*.Md", "*.mD" }
+
 --- Wrap `fn` so that a burst of calls collapses into one, `ms` after the last.
 ---
 --- `WinResized` fires continuously while a split boundary is dragged, and

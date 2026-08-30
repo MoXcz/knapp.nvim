@@ -168,6 +168,9 @@ end
 function M.should_open()
   local opts = config.opts.dashboard
   if not opts.enabled or not opts.auto then return false end
+  -- without snacks the auto-open path stays silent; only an explicit
+  -- :Knapp dashboard warns about the missing dependency
+  if not snacks() then return false end
   if vim.fn.argc() > 0 then return false end
   -- something already put a real buffer on screen
   if vim.api.nvim_buf_get_name(0) ~= "" or vim.bo.filetype ~= "" then return false end
@@ -177,6 +180,15 @@ end
 ---@param group integer augroup id
 function M.setup(group)
   if not config.opts.dashboard.enabled then return end
+  -- a lazy-loaded setup() runs after VimEnter has already fired, and a
+  -- `once` autocmd for a past event never runs (same situation as the
+  -- global keymaps in init.lua)
+  if vim.v.vim_did_enter == 1 then
+    vim.schedule(function()
+      if M.should_open() then M.open() end
+    end)
+    return
+  end
   vim.api.nvim_create_autocmd("VimEnter", {
     group = group,
     once = true,

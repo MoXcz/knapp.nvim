@@ -104,7 +104,7 @@ function M.setup(opts)
   -- the same note in a second window needs the view options too
   vim.api.nvim_create_autocmd("BufWinEnter", {
     group = group,
-    pattern = "*.md",
+    pattern = util.md_patterns,
     callback = function(ev)
       if config.in_vault(vim.api.nvim_buf_get_name(ev.buf)) then apply_view() end
     end,
@@ -132,7 +132,13 @@ function M.setup(opts)
   -- would rebuild the pane. Collapse the pair, and read the current buffer
   -- when the work actually runs rather than when the event fired.
   if config.opts.backlinks.enabled then
-    local refresh_pane = util.debounce(25, function(force)
+    -- `force` accumulates across the debounce window instead of "last call
+    -- wins": a BufEnter's refresh_pane(false) landing just after an index
+    -- change's refresh_pane(true) must not downgrade the forced repaint.
+    local pane_force = false
+    local run_refresh_pane = util.debounce(25, function()
+      local force = pane_force
+      pane_force = false
       -- re-read the flag here, not just at setup: a debounced call outlives
       -- the autocommand that scheduled it
       if not config.opts.backlinks.enabled then return end
@@ -147,9 +153,13 @@ function M.setup(opts)
         pane.open(false)
       end
     end)
+    local function refresh_pane(force)
+      pane_force = pane_force or force
+      run_refresh_pane()
+    end
     vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
       group = group,
-      pattern = "*.md",
+      pattern = util.md_patterns,
       callback = function(ev)
         if not config.in_vault(vim.api.nvim_buf_get_name(ev.buf)) then return end
         if vim.api.nvim_win_get_config(0).relative ~= "" then return end
@@ -168,10 +178,13 @@ function M.setup(opts)
 
   vim.api.nvim_create_autocmd("BufWritePost", {
     group = group,
-    pattern = "*.md",
+    pattern = util.md_patterns,
     callback = function(ev)
       local name = vim.api.nvim_buf_get_name(ev.buf)
-      if not config.in_vault(name) or not index.state.built then return end
+      if not config.in_vault(name) then return end
+      -- no `state.built` guard: a write landing during the background build
+      -- would be dropped and leave the pre-save parse in the index for the
+      -- session. update() drains an in-flight build itself via ensure().
       index.update(config.rel(name))
       index.schedule_save()
       if config.opts.backlinks.enabled then require("knapp.pane").update(true) end

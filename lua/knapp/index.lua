@@ -512,6 +512,7 @@ function M.update_many(rels)
     end
   end
   M.reindex()
+  announce()
 end
 
 function M.backlinks(rel)

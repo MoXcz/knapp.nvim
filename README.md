@@ -44,8 +44,21 @@ With lazy.nvim:
 { "MoXcz/knapp.nvim", opts = { vault = "~/notes" } }
 ```
 
-`snacks.nvim` is optional; when present its picker backs the palette, note
-finder and vault grep. Everything falls back to `vim.ui.select`.
+### Used plugins
+
+| Plugin                                                                               | What it adds                                                                   | Without it                                  |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------- |
+| [snacks.nvim](https://github.com/folke/snacks.nvim)                                  | picker-backed palette, note finder and vault grep; the [dashboard](#dashboard) | falls back to `vim.ui.select`; no dashboard |
+| [blink.cmp](https://github.com/Saghen/blink.cmp)                                     | `[[` [completes note names](#completion)                                       | no completion source                        |
+| [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim) | live markdown preview                                                          | knapp does not render markdown itself       |
+| `ripgrep`                                                                            | fast vault grep through snacks                                                 | the fallback uses `'grepprg'`               |
+
+`:checkhealth knapp` reports which of these it found.
+
+A vault also has to have been opened by Obsidian at least once, so that
+`.obsidian/` exists. Weekly notes read the **Calendar** community plugin's
+settings and zettel prefixes read **Zettelkasten Prefixer**; without those
+plugins knapp uses their defaults.
 
 An option with the wrong type or an unrecognised value is reported and replaced
 with its default, so a typo does not stop the plugin loading.
@@ -145,7 +158,7 @@ otherwise exist outside the vault.
 `:Knapp <subcommand>` covers the same ground with completion: `palette`,
 `rename`, `move`, `merge`, `backlinks`, `follow`, `new`, `find`, `grep`,
 `index`, `daily [offset]`, `weekly [offset]`, `zettel`, `calendar`,
-`template`, `pane`, `width`, `missing`.
+`template`, `pane`, `width`, `missing`, `dashboard`, `todo`.
 
 ## Configuration
 
@@ -189,6 +202,13 @@ require("knapp").setup({
   journal = {
     zettel_separator = " - ", -- "<timestamp> - <title>.md"
   },
+  dashboard = {
+    enabled = true,      -- needs snacks.nvim
+    auto = true,         -- open on startup, inside the vault only
+    todo = "TODO.md",    -- vault-relative file to read `- [ ]` tasks from
+    todo_limit = 10,
+    recent_limit = 8,
+  },
   links = {
     enabled = true,  -- highlight links by whether their target exists
     debounce = 150,  -- repaint at most this often while typing, ms
@@ -217,6 +237,32 @@ stubbing. `make test BUSTED_ARGS=tests/link_spec.lua` runs one file.
 
 `:checkhealth knapp` reports the config, the `.obsidian` files knapp reads, and
 the index state.
+
+## Dashboard
+
+With [snacks.nvim](https://github.com/folke/snacks.nvim), starting Neovim with
+no file inside the vault opens a dashboard: shortcuts for today's note and the
+journal, the notes you opened most recently, this month's calendar with the
+days that already have a note marked, and the unfinished tasks from a file in
+the vault.
+
+It only opens when the working directory is inside the vault and no file was
+given, so `nvim` anywhere else — and whatever dashboard you already use there —
+is untouched. `:Knapp dashboard` opens it on demand.
+
+The todo list reads `- [ ] task` lines from `dashboard.todo` (`TODO.md` at the
+vault root by default), skipping anything inside a fenced code block. Selecting
+a task opens the file on that line, and `:Knapp todo` opens it directly.
+
+```lua
+dashboard = {
+  enabled = true,
+  auto = false,          -- only open it with :Knapp dashboard
+  todo = "Journal/Tasks.md",
+  todo_limit = 10,
+  recent_limit = 8,
+},
+```
 
 ## Completion
 

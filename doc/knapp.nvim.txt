@@ -10,6 +10,7 @@ Table of Contents                               *knapp.nvim-table-of-contents*
   - Keymaps                                    |knapp.nvim-knapp.nvim-keymaps|
   - Configuration                        |knapp.nvim-knapp.nvim-configuration|
   - Development                            |knapp.nvim-knapp.nvim-development|
+  - Dashboard                                |knapp.nvim-knapp.nvim-dashboard|
   - Completion                              |knapp.nvim-knapp.nvim-completion|
   - Rendering                                |knapp.nvim-knapp.nvim-rendering|
 
@@ -20,18 +21,16 @@ Table of Contents                               *knapp.nvim-table-of-contents*
   [!WARNING] This plugin was made with extensive use of AI for my specific
   use-case for a Neovim-Obsidian setup, so if you wish to work with it please
   bear that in mind.
-Work an Obsidian <https://obsidian.md> vault from within Neovim: a link index
-that keeps backlinks correct when notes move, Obsidian-compatible
+Knapping <https://en.wikipedia.org/wiki/Knapping> is the craft of shaping
+obsidian by striking flakes off it. That is roughly what this does to a vault.
+`knapp` works on an Obsidian <https://obsidian.md> vault from within Neovim: a
+link index that keeps backlinks correct when notes move, Obsidian-compatible
 daily/weekly/zettel notes, a command palette, and a readable-width live-preview
 view.
 
-Knapping <https://en.wikipedia.org/wiki/Knapping> is the craft of shaping
-obsidian by striking flakes off it. That is roughly what this does to a vault.
-
-Requires Neovim 0.11+ and a vault created by Obsidian: every folder, filename
-format and template comes from `<vault>/.obsidian/*.json`, so Obsidian stays
-the single source of truth and nothing is configured twice. (The `vim.pack`
-install snippet below needs 0.12+; nothing else does.)
+It requires Neovim 0.11+ and a vault created by Obsidian: every folder,
+filename format and template comes from `<vault>/.obsidian/*.json`, so Obsidian
+stays the single source of truth and nothing is configured twice.
 
 Core settings come from `app.json`, `daily-notes.json` and `templates.json`.
 Weekly notes read the **Calendar** community plugin’s settings and zettel
@@ -64,8 +63,33 @@ With lazy.nvim:
     { "MoXcz/knapp.nvim", opts = { vault = "~/notes" } }
 <
 
-`snacks.nvim` is optional; when present its picker backs the palette, note
-finder and vault grep. Everything falls back to `vim.ui.select`.
+
+DEPENDENCIES ~
+
+Nothing is required beyond Neovim itself. Each optional plugin buys one
+feature, and knapp degrades rather than errors without it:
+
+  -----------------------------------------------------------------------
+  Plugin                  What it adds            Without it
+  ----------------------- ----------------------- -----------------------
+  snacks.nvim             picker-backed palette,  falls back to
+                          note finder and vault   vim.ui.select; no
+                          grep; the dashboard     dashboard
+
+  blink.cmp               [[ completes note names no completion source
+
+  render-markdown.nvim    live markdown preview   knapp does not render
+                                                  markdown itself
+
+  ripgrep                 fast vault grep through the fallback uses
+                          snacks                  'grepprg'
+  -----------------------------------------------------------------------
+`:checkhealth knapp` reports which of these it found.
+
+A vault also has to have been opened by Obsidian at least once, so that
+`.obsidian/` exists. Weekly notes read the **Calendar** community plugin’s
+settings and zettel prefixes read **Zettelkasten Prefixer**; without those
+plugins knapp uses their defaults.
 
 An option with the wrong type or an unrecognised value is reported and replaced
 with its default, so a typo does not stop the plugin loading.
@@ -176,7 +200,7 @@ otherwise exist outside the vault.
 `:Knapp <subcommand>` covers the same ground with completion: `palette`,
 `rename`, `move`, `merge`, `backlinks`, `follow`, `new`, `find`, `grep`,
 `index`, `daily [offset]`, `weekly [offset]`, `zettel`, `calendar`, `template`,
-`pane`, `width`, `missing`.
+`pane`, `width`, `missing`, `dashboard`, `todo`.
 
 
 CONFIGURATION                            *knapp.nvim-knapp.nvim-configuration*
@@ -221,6 +245,13 @@ Defaults:
       journal = {
         zettel_separator = " - ", -- "<timestamp> - <title>.md"
       },
+      dashboard = {
+        enabled = true,      -- needs snacks.nvim
+        auto = true,         -- open on startup, inside the vault only
+        todo = "TODO.md",    -- vault-relative file to read `- [ ]` tasks from
+        todo_limit = 10,
+        recent_limit = 8,
+      },
       links = {
         enabled = true,  -- highlight links by whether their target exists
         debounce = 150,  -- repaint at most this often while typing, ms
@@ -250,6 +281,33 @@ stubbing. `make test BUSTED_ARGS=tests/link_spec.lua` runs one file.
 
 `:checkhealth knapp` reports the config, the `.obsidian` files knapp reads, and
 the index state.
+
+
+DASHBOARD                                    *knapp.nvim-knapp.nvim-dashboard*
+
+With snacks.nvim <https://github.com/folke/snacks.nvim>, starting Neovim with
+no file inside the vault opens a dashboard: shortcuts for today’s note and
+the journal, the notes you opened most recently, this month’s calendar with
+the days that already have a note marked, and the unfinished tasks from a file
+in the vault.
+
+It only opens when the working directory is inside the vault and no file was
+given, so `nvim` anywhere else — and whatever dashboard you already use there
+— is untouched. `:Knapp dashboard` opens it on demand.
+
+The todo list reads `- [ ] task` lines from `dashboard.todo` (`TODO.md` at the
+vault root by default), skipping anything inside a fenced code block. Selecting
+a task opens the file on that line, and `:Knapp todo` opens it directly.
+
+>lua
+    dashboard = {
+      enabled = true,
+      auto = false,          -- only open it with :Knapp dashboard
+      todo = "Journal/Tasks.md",
+      todo_limit = 10,
+      recent_limit = 8,
+    },
+<
 
 
 COMPLETION                                  *knapp.nvim-knapp.nvim-completion*

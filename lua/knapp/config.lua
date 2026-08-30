@@ -58,6 +58,17 @@ M.defaults = {
     -- Fleeting notes are named "<timestamp><separator><title>".
     zettel_separator = " - ",
   },
+  dashboard = {
+    -- A vault dashboard, drawn with snacks.nvim. Opens only when Nvim starts
+    -- with no file inside the vault, so it leaves the rest of your setup and
+    -- whatever dashboard you use elsewhere alone.
+    enabled = true,
+    auto = true,
+    -- Vault-relative markdown file to read `- [ ]` tasks from.
+    todo = "TODO.md",
+    todo_limit = 10,
+    recent_limit = 8,
+  },
   links = {
     -- Highlight links by whether their target exists, so a link that points
     -- nowhere is visible without following it.
@@ -125,6 +136,12 @@ M.schema = {
   { "backlinks.height", positive, "a positive number" },
 
   { "journal.zettel_separator", is("string"), "a string" },
+
+  { "dashboard.enabled", is("boolean"), "a boolean" },
+  { "dashboard.auto", is("boolean"), "a boolean" },
+  { "dashboard.todo", is("string"), "a vault-relative path" },
+  { "dashboard.todo_limit", positive, "a positive number" },
+  { "dashboard.recent_limit", positive, "a positive number" },
 
   { "links.enabled", is("boolean"), "a boolean" },
   { "links.debounce", positive, "a positive number" },

@@ -72,6 +72,7 @@ function M.setup(opts)
   end
 
   require("knapp.links").setup(group)
+  require("knapp.dashboard").setup(group)
 
   if config.opts.fix_sessionoptions then vim.opt.sessionoptions:remove("blank") end
 
@@ -176,6 +177,8 @@ function M.setup(opts)
     pane = function() require("knapp.pane").toggle() end,
     width = function() require("knapp.view").toggle() end,
     missing = function() require("knapp.links").show_missing() end,
+    dashboard = function() require("knapp.dashboard").open() end,
+    todo = function() require("knapp.todo").open() end,
   }
 
   vim.api.nvim_create_user_command("Knapp", function(cmd)

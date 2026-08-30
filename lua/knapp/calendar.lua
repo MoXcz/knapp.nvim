@@ -42,6 +42,14 @@ local function column_of(time, first_day)
   return (wday + 5) % 7 + 1
 end
 
+--- The month grid: display lines, plus `{ line, col_start, col_end, hl }`
+--- marks over them. Shared with the dashboard, which draws the same grid.
+---@param year integer
+---@param month integer
+---@return string[] lines
+---@return table[] cells
+---@return table<integer, integer> weeks
+---@return table[] marks
 local function build(year, month)
   local first_day = ocfg.get().weekly.week_start
   local days_in_month = date.parts(date.of(year, month + 1, 0)).day
@@ -154,6 +162,15 @@ local function shift_month(n)
   state.year, state.month = t.year, t.month
   render()
   vim.api.nvim_win_set_cursor(state.win, { math.min(3, vim.api.nvim_buf_line_count(state.buf)), 4 })
+end
+
+--- The month grid for `year`/`month`, as lines and highlight marks.
+--- Exposed so the dashboard can draw the same calendar.
+---@return string[] lines
+---@return table[] marks
+function M.grid(year, month)
+  local lines, _, _, marks = build(year, month)
+  return lines, marks
 end
 
 --- Open the calendar. `<CR>` opens the daily note under the cursor, `W` the

@@ -9,7 +9,7 @@
 </p>
 
 [Knapping](https://en.wikipedia.org/wiki/Knapping) is the craft of shaping obsidian by striking flakes off it. That is
-roughly what this does to a vault. `knapp` is designed to work alongisde an [Obsidian](https://obsidian.md). It tries
+roughly what this does to a vault. `knapp` is designed to work alongisde an [Obsidian](https://obsidian.md) vault, and it tries
 to emulate a lot of the behavior Obsidian has that makes it compelling to use as an interface
 for Makrdown note-taking:
 

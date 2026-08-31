@@ -1,5 +1,5 @@
 *knapp.nvim.txt*
-                                For NVIM v0.8.0    Last change: 2026 August 30
+                                For NVIM v0.8.0    Last change: 2026 August 31
 
 ==============================================================================
 Table of Contents                               *knapp.nvim-table-of-contents*
@@ -24,9 +24,9 @@ Table of Contents                               *knapp.nvim-table-of-contents*
   bear that in mind.
 Knapping <https://en.wikipedia.org/wiki/Knapping> is the craft of shaping
 obsidian by striking flakes off it. That is roughly what this does to a vault.
-`knapp` is designed to work alongisde an Obsidian <https://obsidian.md>. It
-tries to emulate a lot of the behavior Obsidian has that makes it compelling to
-use as an interface for Makrdown note-taking:
+`knapp` is designed to work alongisde an Obsidian <https://obsidian.md> vault,
+and it tries to emulate a lot of the behavior Obsidian has that makes it
+compelling to use as an interface for Makrdown note-taking:
 
 - **Vault indexing**. It keeps tracks of notes with their backlinks and paths, making it
     easy to rename, merge, and move around files and update links automatically.
